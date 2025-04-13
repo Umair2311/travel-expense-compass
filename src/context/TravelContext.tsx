@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Travel, Participant, Expense, AdvanceContribution, Settlement, ExpenseType, DateRange } from '../types/models';
@@ -12,7 +11,7 @@ interface TravelContextType {
   createTravel: (name: string, dateRange: DateRange) => void;
   updateTravel: (travel: Travel) => void;
   deleteTravel: (id: string) => void;
-  addParticipant: (name: string, email: string | undefined, participationPeriods: DateRange[]) => void;
+  addParticipant: (name: string, email: string | undefined, participationPeriods: DateRange[], initialContribution?: number) => void;
   updateParticipant: (participant: Participant) => void;
   removeParticipant: (id: string) => void;
   addExpense: (
@@ -50,14 +49,12 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [refundDonations, setRefundDonations] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
-  // Load data from localStorage on initial render
   useEffect(() => {
     const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (savedData) {
       try {
         const parsedData = JSON.parse(savedData);
         
-        // Convert string dates back to Date objects
         const processedTravels = parsedData.travels.map((travel: any) => ({
           ...travel,
           startDate: new Date(travel.startDate),
@@ -105,7 +102,6 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, [toast]);
 
-  // Save data to localStorage whenever it changes
   useEffect(() => {
     const dataToSave = {
       travels,
@@ -172,7 +168,7 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const addParticipant = (name: string, email: string | undefined, participationPeriods: DateRange[]) => {
+  const addParticipant = (name: string, email: string | undefined, participationPeriods: DateRange[], initialContribution?: number) => {
     if (!currentTravel) return;
 
     const newParticipant: Participant = {
@@ -196,6 +192,15 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setTravels((prev) =>
       prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
     );
+
+    if (initialContribution && initialContribution > 0) {
+      addAdvanceContribution(
+        newParticipant.id,
+        initialContribution,
+        new Date(),
+        "Initial contribution"
+      );
+    }
 
     toast({
       title: 'Participant added',
@@ -231,7 +236,6 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     const participantToRemove = currentTravel.participants.find(p => p.id === id);
     if (!participantToRemove) return;
 
-    // Check if participant is part of any expense or contribution
     const isInExpenses = currentTravel.expenses.some(e => 
       e.paidBy.some(p => p.participantId === id) || 
       e.sharedAmong.some(p => p.participantId === id)
@@ -461,19 +465,16 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!currentTravel) return [];
 
     const settlements: Settlement[] = currentTravel.participants.map((participant) => {
-      // Calculate total advance contributions by this participant
       const advancePaid = currentTravel.advanceContributions
         .filter((c) => c.participantId === participant.id)
         .reduce((sum, c) => sum + c.amount, 0);
 
-      // Calculate total personally paid (not from fund)
       const personallyPaid = currentTravel.expenses
         .filter((e) => !e.paidFromFund)
         .flatMap((e) => e.paidBy)
         .filter((p) => p.participantId === participant.id)
         .reduce((sum, p) => sum + p.amount, 0);
 
-      // Calculate total expense share
       let expenseShare = 0;
       currentTravel.expenses.forEach((expense) => {
         const participantIncluded = expense.sharedAmong.find(
@@ -481,19 +482,16 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         );
 
         if (participantIncluded && participantIncluded.included) {
-          // Calculate total weights for this expense
           const totalWeight = expense.sharedAmong
             .filter((p) => p.included)
             .reduce((sum, p) => sum + p.weight, 0);
 
           if (totalWeight > 0) {
-            // Calculate this participant's share based on weight
             expenseShare += (expense.amount * participantIncluded.weight) / totalWeight;
           }
         }
       });
 
-      // Calculate net balance
       const totalPaid = advancePaid + personallyPaid;
       const dueAmount = Math.max(0, expenseShare - totalPaid);
       const refundAmount = Math.max(0, totalPaid - expenseShare);
@@ -517,13 +515,11 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const getTravelFundBalance = (): number => {
     if (!currentTravel) return 0;
 
-    // Total contributions to fund
     const totalContributions = currentTravel.advanceContributions.reduce(
       (sum, c) => sum + c.amount,
       0
     );
 
-    // Total expenses paid from fund
     const totalFundExpenses = currentTravel.expenses
       .filter((e) => e.paidFromFund)
       .reduce((sum, e) => sum + e.amount, 0);
@@ -564,12 +560,10 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
-      // Use dynamic import to load library only when needed
       const XLSX = (await import('xlsx')).default;
       
       const settlements = calculateSettlements();
       
-      // Create worksheet data
       const wsData = [
         ['Travel Expense Summary'],
         [`Travel Name: ${currentTravel.name}`],
@@ -589,18 +583,14 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         ])
       ];
       
-      // Create worksheet
       const ws = XLSX.utils.aoa_to_sheet(wsData);
       
-      // Set column widths
       const colWidths = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
       ws['!cols'] = colWidths;
       
-      // Create workbook
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'Summary');
       
-      // Create expenses worksheet
       const expensesData = [
         ['Expenses'],
         [],
@@ -625,7 +615,6 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const expensesWs = XLSX.utils.aoa_to_sheet(expensesData);
       XLSX.utils.book_append_sheet(wb, expensesWs, 'Expenses');
       
-      // Create contributions worksheet
       const contributionsData = [
         ['Advance Contributions'],
         [],
@@ -644,7 +633,6 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const contributionsWs = XLSX.utils.aoa_to_sheet(contributionsData);
       XLSX.utils.book_append_sheet(wb, contributionsWs, 'Contributions');
       
-      // Create participants worksheet
       const participantsData = [
         ['Participants'],
         [],
@@ -665,10 +653,8 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       const participantsWs = XLSX.utils.aoa_to_sheet(participantsData);
       XLSX.utils.book_append_sheet(wb, participantsWs, 'Participants');
       
-      // Generate filename from travel name (slugify)
       const filename = `${currentTravel.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '')}.xlsx`;
       
-      // Export to file
       XLSX.writeFile(wb, filename);
       
       toast({
