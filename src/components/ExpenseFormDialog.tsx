@@ -1,40 +1,13 @@
 import { useState, useEffect } from 'react';
-import { format } from 'date-fns';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Calendar } from "@/components/ui/calendar";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Checkbox } from '@/components/ui/checkbox';
-import { Switch } from '@/components/ui/switch';
-import { Calendar as CalendarIcon, Trash } from 'lucide-react';
+import { Modal, Form, Input, DatePicker, Select, Switch, Table, Checkbox, InputNumber, Button, Space, Typography, Radio } from 'antd';
+import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import { useTravel } from '@/context/TravelContext';
 import { Expense, ExpenseType } from '@/types/models';
-import { cn } from '@/lib/utils';
+import dayjs from 'dayjs';
+
+const { TextArea } = Input;
+const { Option } = Select;
+const { Text } = Typography;
 
 interface ExpenseFormDialogProps {
   isOpen: boolean;
@@ -48,13 +21,11 @@ const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   expense,
 }) => {
   const { currentTravel, addExpense, updateExpense, isParticipantPresentOnDate } = useTravel();
+  const [form] = Form.useForm();
   
-  const [amount, setAmount] = useState(expense?.amount?.toString() || '');
   const [date, setDate] = useState<Date>(expense?.date || new Date());
-  const [type, setType] = useState<ExpenseType>(expense?.type || 'Meal');
-  const [customType, setCustomType] = useState(expense?.customType || '');
   const [paidFromFund, setPaidFromFund] = useState(expense?.paidFromFund || false);
-  const [comment, setComment] = useState(expense?.comment || '');
+  const [expenseType, setExpenseType] = useState<ExpenseType>(expense?.type || 'Meal');
   const [amountError, setAmountError] = useState('');
   
   // For payers
@@ -92,22 +63,30 @@ const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   // Initialize payers and participants when expense changes
   useEffect(() => {
     if (expense) {
-      setAmount(expense.amount.toString());
+      form.setFieldsValue({
+        amount: expense.amount,
+        date: dayjs(expense.date),
+        type: expense.type,
+        customType: expense.customType || '',
+        comment: expense.comment || '',
+      });
+      
       setDate(expense.date);
-      setType(expense.type);
-      setCustomType(expense.customType || '');
+      setExpenseType(expense.type);
       setPaidFromFund(expense.paidFromFund);
-      setComment(expense.comment || '');
       setPayers(expense.paidBy);
       setParticipants(expense.sharedAmong);
     } else {
       // Reset form for new expense
-      setAmount('');
+      form.resetFields();
+      form.setFieldsValue({
+        date: dayjs(),
+        type: 'Meal',
+      });
+      
       setDate(new Date());
-      setType('Meal');
-      setCustomType('');
+      setExpenseType('Meal');
       setPaidFromFund(false);
-      setComment('');
       
       // Initialize payers with all participants and zero amounts
       if (currentTravel) {
@@ -130,61 +109,61 @@ const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
         );
       }
     }
-  }, [expense, currentTravel, isParticipantPresentOnDate]);
+  }, [expense, currentTravel, isParticipantPresentOnDate, form]);
   
   const handleSubmit = () => {
-    if (!currentTravel) return;
-    
-    // Validate
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-      setAmountError('Please enter a valid amount');
-      return;
-    }
-    
-    const numericAmount = parseFloat(amount);
-    
-    // Filter out payers with zero amount
-    const filteredPayers = paidFromFund 
-      ? [] 
-      : payers.filter(p => p.amount > 0);
-    
-    // Verify total paid amount equals expense amount
-    if (!paidFromFund) {
-      const totalPaid = filteredPayers.reduce((sum, p) => sum + p.amount, 0);
-      if (Math.abs(totalPaid - numericAmount) > 0.01) {
-        setAmountError('Total paid must equal the expense amount');
-        return;
+    form.validateFields().then(values => {
+      if (!currentTravel) return;
+      
+      const numericAmount = parseFloat(values.amount);
+      
+      // Filter out payers with zero amount
+      const filteredPayers = paidFromFund 
+        ? [] 
+        : payers.filter(p => p.amount > 0);
+      
+      // Verify total paid amount equals expense amount
+      if (!paidFromFund) {
+        const totalPaid = filteredPayers.reduce((sum, p) => sum + p.amount, 0);
+        if (Math.abs(totalPaid - numericAmount) > 0.01) {
+          setAmountError('Total paid must equal the expense amount');
+          return;
+        }
       }
-    }
-    
-    if (expense) {
-      // Update existing expense
-      updateExpense({
-        ...expense,
+      
+      const expenseData = {
         amount: numericAmount,
-        date,
-        type,
-        customType: type === 'Custom' ? customType : undefined,
+        date: values.date.toDate(),
+        type: values.type as ExpenseType,
+        customType: values.type === 'Custom' ? values.customType : undefined,
         paidBy: filteredPayers,
         paidFromFund,
         sharedAmong: participants,
-        comment: comment || undefined,
-      });
-    } else {
-      // Add new expense
-      addExpense(
-        numericAmount,
-        date,
-        type,
-        type === 'Custom' ? customType : undefined,
-        filteredPayers,
-        paidFromFund,
-        participants,
-        comment || undefined
-      );
-    }
-    
-    onOpenChange(false);
+        comment: values.comment || undefined,
+      };
+      
+      if (expense) {
+        // Update existing expense
+        updateExpense({
+          ...expense,
+          ...expenseData,
+        });
+      } else {
+        // Add new expense
+        addExpense(
+          expenseData.amount,
+          expenseData.date,
+          expenseData.type,
+          expenseData.customType,
+          expenseData.paidBy,
+          expenseData.paidFromFund,
+          expenseData.sharedAmong,
+          expenseData.comment
+        );
+      }
+      
+      onOpenChange(false);
+    });
   };
   
   const updatePayerAmount = (participantId: string, newAmount: number) => {
@@ -213,7 +192,7 @@ const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
   };
   
   const getRemainingAmount = (): number => {
-    const expenseAmount = parseFloat(amount) || 0;
+    const expenseAmount = form.getFieldValue('amount') || 0;
     const paidAmount = payers.reduce((sum, p) => sum + p.amount, 0);
     return Math.max(0, expenseAmount - paidAmount);
   };
@@ -261,238 +240,228 @@ const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
     return isParticipantPresentOnDate(participantId, date);
   };
   
+  const payerColumns = [
+    {
+      title: 'Participant',
+      dataIndex: 'participantId',
+      key: 'participantId',
+      render: (participantId: string) => (
+        <span>
+          {getParticipantName(participantId)}
+          {!isParticipantPresent(participantId) && (
+            <Text type="secondary" style={{ fontSize: '12px', marginLeft: '8px' }}>
+              (not present)
+            </Text>
+          )}
+        </span>
+      ),
+    },
+    {
+      title: 'Amount',
+      dataIndex: 'amount',
+      key: 'amount',
+      render: (_: any, record: { participantId: string, amount: number }) => (
+        <InputNumber
+          style={{ width: '100%' }}
+          min={0}
+          step={0.01}
+          precision={2}
+          value={record.amount}
+          onChange={(value) => updatePayerAmount(record.participantId, value || 0)}
+        />
+      ),
+    },
+  ];
+  
+  const participantColumns = [
+    {
+      title: 'Participant',
+      dataIndex: 'participantId',
+      key: 'participantId',
+      render: (participantId: string) => (
+        <span>
+          {getParticipantName(participantId)}
+          {!isParticipantPresent(participantId) && (
+            <Text type="secondary" style={{ fontSize: '12px', marginLeft: '8px' }}>
+              (not present)
+            </Text>
+          )}
+        </span>
+      ),
+    },
+    {
+      title: 'Include',
+      dataIndex: 'included',
+      key: 'included',
+      render: (_: any, record: { participantId: string, included: boolean }) => (
+        <Checkbox
+          checked={record.included}
+          onChange={(e) => updateParticipantInclusion(record.participantId, e.target.checked)}
+        />
+      ),
+    },
+    {
+      title: 'Weight',
+      dataIndex: 'weight',
+      key: 'weight',
+      render: (_: any, record: { participantId: string, included: boolean, weight: number }) => (
+        <InputNumber
+          style={{ width: '100%' }}
+          min={0.1}
+          step={0.1}
+          precision={1}
+          value={record.weight}
+          onChange={(value) => updateParticipantWeight(record.participantId, value || 1)}
+          disabled={!record.included}
+        />
+      ),
+    },
+  ];
+  
   if (!currentTravel) return null;
   
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px]">
-        <DialogHeader>
-          <DialogTitle>{expense ? 'Edit Expense' : 'Add Expense'}</DialogTitle>
-          <DialogDescription>
-            {expense ? 'Edit the details of this expense' : 'Add a new expense to your travel'}
-          </DialogDescription>
-        </DialogHeader>
-        
-        <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="amount">Amount</Label>
-              <Input
-                id="amount"
-                type="number"
-                step="0.01"
-                min="0"
-                placeholder="100.00"
-                value={amount}
-                onChange={(e) => {
-                  setAmount(e.target.value);
-                  setAmountError('');
-                }}
-                className={amountError ? 'border-red-500' : ''}
-              />
-              {amountError && (
-                <p className="text-sm text-red-500 mt-1">{amountError}</p>
-              )}
-            </div>
-            
-            <div>
-              <Label>Date</Label>
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "w-full justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={(newDate) => newDate && setDate(newDate)}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="type">Type</Label>
-              <Select value={type} onValueChange={(value: ExpenseType) => setType(value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select expense type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Meal">Meal</SelectItem>
-                  <SelectItem value="Fuel">Fuel</SelectItem>
-                  <SelectItem value="Hotel">Hotel</SelectItem>
-                  <SelectItem value="Custom">Custom</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {type === 'Custom' && (
-              <div>
-                <Label htmlFor="custom-type">Custom Type</Label>
-                <Input
-                  id="custom-type"
-                  placeholder="e.g., Museum tickets"
-                  value={customType}
-                  onChange={(e) => setCustomType(e.target.value)}
-                />
-              </div>
-            )}
-          </div>
-          
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label>Paid from Travel Fund</Label>
-              <Switch 
-                checked={paidFromFund} 
-                onCheckedChange={setPaidFromFund} 
-              />
-            </div>
-            {!paidFromFund && (
-              <div className="mt-2 border rounded-md p-3">
-                <div className="flex justify-between items-center mb-3">
-                  <Label>Paid By</Label>
-                  <div className="text-sm flex gap-2">
-                    <span>Remaining: ${getRemainingAmount().toFixed(2)}</span>
-                    <Button 
-                      variant="ghost" 
-                      size="sm" 
-                      onClick={distributeRemaining} 
-                      disabled={getRemainingAmount() <= 0}
-                    >
-                      Distribute
-                    </Button>
-                  </div>
-                </div>
-                
-                <div className="max-h-48 overflow-y-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Participant</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {payers.map((payer) => (
-                        <TableRow key={payer.participantId}>
-                          <TableCell className="font-medium">
-                            {getParticipantName(payer.participantId)}
-                            {!isParticipantPresent(payer.participantId) && (
-                              <span className="text-muted-foreground text-xs ml-2">(not present)</span>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              value={payer.amount || ''}
-                              onChange={(e) => 
-                                updatePayerAmount(
-                                  payer.participantId, 
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                              className="w-24 text-right"
-                            />
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <Label>Shared Among</Label>
-            </div>
-            <div className="border rounded-md p-3">
-              <div className="max-h-48 overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Participant</TableHead>
-                      <TableHead className="text-center">Include</TableHead>
-                      <TableHead className="text-right">Weight</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {participants.map((participant) => (
-                      <TableRow key={participant.participantId}>
-                        <TableCell className="font-medium">
-                          {getParticipantName(participant.participantId)}
-                          {!isParticipantPresent(participant.participantId) && (
-                            <span className="text-muted-foreground text-xs ml-2">(not present)</span>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <Checkbox
-                            checked={participant.included}
-                            onCheckedChange={(checked) => 
-                              updateParticipantInclusion(participant.participantId, !!checked)
-                            }
-                          />
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Input
-                            type="number"
-                            step="0.1"
-                            min="0.1"
-                            value={participant.weight}
-                            onChange={(e) => 
-                              updateParticipantWeight(
-                                participant.participantId, 
-                                parseFloat(e.target.value) || 1
-                              )
-                            }
-                            disabled={!participant.included}
-                            className="w-20 text-right"
-                          />
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </div>
-          </div>
-          
-          <div>
-            <Label htmlFor="comment">Comment (Optional)</Label>
-            <Textarea
-              id="comment"
-              placeholder="Add any additional details about this expense"
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
+    <Modal
+      title={expense ? 'Edit Expense' : 'Add Expense'}
+      open={isOpen}
+      onCancel={() => onOpenChange(false)}
+      footer={[
+        <Button key="cancel" onClick={() => onOpenChange(false)}>
+          Cancel
+        </Button>,
+        <Button key="submit" type="primary" onClick={handleSubmit}>
+          {expense ? 'Save Changes' : 'Add Expense'}
+        </Button>,
+      ]}
+      width={800}
+    >
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={{
+          amount: expense?.amount || '',
+          date: expense ? dayjs(expense.date) : dayjs(),
+          type: expense?.type || 'Meal',
+          customType: expense?.customType || '',
+          comment: expense?.comment || '',
+        }}
+      >
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          <Form.Item
+            name="amount"
+            label="Amount"
+            rules={[{ required: true, message: 'Please enter amount' }]}
+            validateStatus={amountError ? 'error' : ''}
+            help={amountError}
+          >
+            <InputNumber
+              style={{ width: '100%' }}
+              placeholder="100.00"
+              precision={2}
+              min={0}
+              step={0.01}
+              onChange={() => setAmountError('')}
+              addonBefore="$"
             />
-          </div>
+          </Form.Item>
+          
+          <Form.Item
+            name="date"
+            label="Date"
+            rules={[{ required: true, message: 'Please select date' }]}
+          >
+            <DatePicker 
+              style={{ width: '100%' }} 
+              onChange={(date) => date && setDate(date.toDate())} 
+              format="YYYY-MM-DD"
+            />
+          </Form.Item>
         </div>
         
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSubmit}>
-            {expense ? 'Save Changes' : 'Add Expense'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+          <Form.Item
+            name="type"
+            label="Type"
+            rules={[{ required: true, message: 'Please select type' }]}
+          >
+            <Select onChange={(value) => setExpenseType(value as ExpenseType)}>
+              <Option value="Meal">Meal</Option>
+              <Option value="Fuel">Fuel</Option>
+              <Option value="Hotel">Hotel</Option>
+              <Option value="Custom">Custom</Option>
+            </Select>
+          </Form.Item>
+          
+          {expenseType === 'Custom' && (
+            <Form.Item
+              name="customType"
+              label="Custom Type"
+              rules={[{ required: true, message: 'Please enter custom type' }]}
+            >
+              <Input placeholder="e.g., Museum tickets" />
+            </Form.Item>
+          )}
+        </div>
+        
+        <Form.Item label="Payment Method">
+          <Radio.Group
+            value={paidFromFund ? 'fund' : 'individual'}
+            onChange={(e) => setPaidFromFund(e.target.value === 'fund')}
+          >
+            <Radio.Button value="fund">Paid from Travel Fund</Radio.Button>
+            <Radio.Button value="individual">Paid by Individual(s)</Radio.Button>
+          </Radio.Group>
+        </Form.Item>
+        
+        {!paidFromFund && (
+          <div className="mt-4 mb-4">
+            <div className="flex justify-between items-center mb-2">
+              <Text strong>Paid By</Text>
+              <div>
+                <Text type="secondary" style={{ marginRight: '10px' }}>
+                  Remaining: ${getRemainingAmount().toFixed(2)}
+                </Text>
+                <Button
+                  size="small"
+                  onClick={distributeRemaining}
+                  disabled={getRemainingAmount() <= 0}
+                >
+                  Distribute
+                </Button>
+              </div>
+            </div>
+            
+            <Table
+              dataSource={payers}
+              columns={payerColumns}
+              pagination={false}
+              rowKey="participantId"
+              size="small"
+              scroll={{ y: 200 }}
+            />
+          </div>
+        )}
+        
+        <div className="mt-4 mb-4">
+          <Text strong className="block mb-2">Shared Among</Text>
+          <Table
+            dataSource={participants}
+            columns={participantColumns}
+            pagination={false}
+            rowKey="participantId"
+            size="small"
+            scroll={{ y: 200 }}
+          />
+        </div>
+        
+        <Form.Item name="comment" label="Comment (Optional)">
+          <TextArea 
+            rows={3} 
+            placeholder="Add any additional details about this expense" 
+          />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 };
 
