@@ -1,0 +1,345 @@
+
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useTravel } from '@/context/TravelContext';
+import Layout from '@/components/Layout';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { 
+  Table, 
+  TableBody, 
+  TableCell, 
+  TableHead, 
+  TableHeader, 
+  TableRow 
+} from '@/components/ui/table';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { 
+  FileSpreadsheet, 
+  PiggyBank, 
+  Wallet, 
+  User, 
+  CircleDollarSign, 
+  ArrowDownUp, 
+  ArrowDown, 
+  ArrowUp,
+  Gift,
+  DollarSign,
+  Medal,
+  AlertTriangle
+} from 'lucide-react';
+import { Settlement } from '@/types/models';
+
+const Summary = () => {
+  const { 
+    currentTravel, 
+    calculateSettlements, 
+    getTotalExpenses, 
+    markRefundAsDonated, 
+    exportToExcel 
+  } = useTravel();
+  const navigate = useNavigate();
+  
+  const [sortBy, setSortBy] = useState<keyof Settlement>('name');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  
+  // Redirect if no current travel
+  if (!currentTravel) {
+    navigate('/');
+    return null;
+  }
+  
+  const settlements = calculateSettlements();
+  const totalExpenses = getTotalExpenses();
+  
+  const totalDue = settlements.reduce((sum, s) => sum + s.dueAmount, 0);
+  const totalRefund = settlements.reduce((sum, s) => sum + s.refundAmount, 0);
+  const totalDonated = settlements.reduce((sum, s) => s.donated ? sum + s.refundAmount : sum, 0);
+  
+  const sortedSettlements = [...settlements].sort((a, b) => {
+    if (sortBy === 'name') {
+      return sortDirection === 'asc'
+        ? a.name.localeCompare(b.name)
+        : b.name.localeCompare(a.name);
+    } else {
+      const valA = a[sortBy] as number;
+      const valB = b[sortBy] as number;
+      return sortDirection === 'asc' ? valA - valB : valB - valA;
+    }
+  });
+  
+  const handleSort = (field: keyof Settlement) => {
+    if (sortBy === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(field);
+      setSortDirection('asc');
+    }
+  };
+  
+  const handleDonationToggle = (participantId: string, donated: boolean) => {
+    markRefundAsDonated(participantId, donated);
+  };
+  
+  // Get highest contributor
+  const highestContributor = [...settlements].sort((a, b) => 
+    (b.advancePaid + b.personallyPaid) - (a.advancePaid + a.personallyPaid)
+  )[0];
+  
+  return (
+    <Layout>
+      <div className="max-w-4xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-bold">Summary</h1>
+            <p className="text-muted-foreground">
+              Final expense calculation and settlement
+            </p>
+          </div>
+          <Button onClick={exportToExcel}>
+            <FileSpreadsheet className="mr-2 h-4 w-4" />
+            Export to Excel
+          </Button>
+        </div>
+        
+        <div className="grid gap-4 md:grid-cols-3 mb-8">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg">Total Expenses</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                ${totalExpenses.toFixed(2)}
+              </div>
+              <div className="text-muted-foreground text-sm">
+                All travel expenses
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-1">
+                <ArrowDown className="h-4 w-4 text-travel-error" /> Due Payments
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                ${totalDue.toFixed(2)}
+              </div>
+              <div className="text-muted-foreground text-sm">
+                To be collected
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-1">
+                <ArrowUp className="h-4 w-4 text-travel-secondary" /> Refunds
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-3xl font-bold">
+                ${(totalRefund - totalDonated).toFixed(2)}
+              </div>
+              <div className="text-muted-foreground text-sm">
+                To be returned
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {highestContributor && highestContributor.advancePaid + highestContributor.personallyPaid > 0 && (
+          <Card className="mb-8 bg-gradient-to-r from-travel-primary/10 to-travel-secondary/10">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="bg-yellow-500 text-white p-2 rounded-full">
+                <Medal className="h-6 w-6" />
+              </div>
+              <div className="flex-1">
+                <p className="font-medium">{highestContributor.name} contributed the most</p>
+                <p className="text-sm text-muted-foreground">
+                  With a total of ${(highestContributor.advancePaid + highestContributor.personallyPaid).toFixed(2)}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Settlement Summary</CardTitle>
+            <CardDescription>
+              Final breakdown of expenses and payments
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {settlements.length === 0 ? (
+              <div className="text-center py-6 text-muted-foreground">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
+                <p>No participants or expenses to calculate settlements</p>
+              </div>
+            ) : (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead 
+                        onClick={() => handleSort('name')}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1">
+                          Participant
+                          {sortBy === 'name' && (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            )
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        onClick={() => handleSort('advancePaid')}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1">
+                          Advance Paid
+                          {sortBy === 'advancePaid' && (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            )
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        onClick={() => handleSort('personallyPaid')}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1">
+                          Paid Personally
+                          {sortBy === 'personallyPaid' && (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            )
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        onClick={() => handleSort('expenseShare')}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1">
+                          Expense Share
+                          {sortBy === 'expenseShare' && (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            )
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        onClick={() => handleSort('dueAmount')}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1">
+                          Due Amount
+                          {sortBy === 'dueAmount' && (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            )
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead 
+                        onClick={() => handleSort('refundAmount')}
+                        className="cursor-pointer"
+                      >
+                        <div className="flex items-center gap-1">
+                          Refund Amount
+                          {sortBy === 'refundAmount' && (
+                            sortDirection === 'asc' ? (
+                              <ArrowUp className="h-3 w-3" />
+                            ) : (
+                              <ArrowDown className="h-3 w-3" />
+                            )
+                          )}
+                        </div>
+                      </TableHead>
+                      <TableHead>Donate</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sortedSettlements.map((settlement) => (
+                      <TableRow key={settlement.participantId}>
+                        <TableCell className="font-medium">
+                          {settlement.name}
+                        </TableCell>
+                        <TableCell>
+                          ${settlement.advancePaid.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          ${settlement.personallyPaid.toFixed(2)}
+                        </TableCell>
+                        <TableCell>
+                          ${settlement.expenseShare.toFixed(2)}
+                        </TableCell>
+                        <TableCell className={settlement.dueAmount > 0 ? 'text-travel-error font-medium' : ''}>
+                          {settlement.dueAmount > 0 ? `$${settlement.dueAmount.toFixed(2)}` : '-'}
+                        </TableCell>
+                        <TableCell className={settlement.refundAmount > 0 ? 'text-travel-secondary font-medium' : ''}>
+                          {settlement.refundAmount > 0 ? `$${settlement.refundAmount.toFixed(2)}` : '-'}
+                        </TableCell>
+                        <TableCell>
+                          {settlement.refundAmount > 0 ? (
+                            <div className="flex items-center gap-2">
+                              <Switch
+                                checked={settlement.donated}
+                                onCheckedChange={(checked) => 
+                                  handleDonationToggle(settlement.participantId, checked)
+                                }
+                              />
+                              {settlement.donated && (
+                                <Gift className="h-4 w-4 text-travel-accent" />
+                              )}
+                            </div>
+                          ) : (
+                            '-'
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+            
+            {totalDonated > 0 && (
+              <div className="mt-4 p-3 bg-travel-accent/10 rounded-md flex items-center gap-2">
+                <Gift className="h-5 w-5 text-travel-accent" />
+                <div>
+                  <p className="font-medium">Donations: ${totalDonated.toFixed(2)}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total amount from refunds donated to the group
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </Layout>
+  );
+};
+
+export default Summary;
