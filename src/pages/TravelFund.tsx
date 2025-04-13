@@ -1,3 +1,4 @@
+
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -444,7 +445,9 @@ const TravelFund = () => {
                   <CalendarComponent
                     mode="single"
                     selected={date}
-                    onSelect={(newDate) => newDate && setDate(newDate)}
+                    onSelect={(newDate) => {
+                      if (newDate) setDate(newDate);
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
@@ -552,7 +555,9 @@ const TravelFund = () => {
                     <CalendarComponent
                       mode="single"
                       selected={date}
-                      onSelect={(newDate) => newDate && setDate(newDate)}
+                      onSelect={(newDate) => {
+                        if (newDate) setDate(newDate);
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
