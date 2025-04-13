@@ -12,7 +12,7 @@ const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 
 const Participants = () => {
-  const { currentTravel, addParticipant, updateParticipant, removeParticipant } = useTravel();
+  const { currentTravel, addParticipant, updateParticipant, removeParticipant, validateParticipationPeriod } = useTravel();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -141,6 +141,28 @@ const Participants = () => {
       delete formValues[`period_${index}`];
       form.setFieldsValue(formValues);
     }
+  };
+
+  // Function to validate if date range is within travel period
+  const isDateRangeValid = (dates: any) => {
+    if (!dates || !dates[0] || !dates[1]) return true;
+    
+    const startDate = dates[0].toDate();
+    const endDate = dates[1].toDate();
+    
+    return validateParticipationPeriod({
+      startDate,
+      endDate
+    });
+  };
+
+  // Disable dates outside of travel period
+  const disabledDate = (current: dayjs.Dayjs) => {
+    if (!currentTravel) return false;
+    
+    // Prevent dates before travel start or after travel end
+    return current.isBefore(dayjs(currentTravel.startDate), 'day') || 
+           current.isAfter(dayjs(currentTravel.endDate), 'day');
   };
   
   return (
@@ -293,11 +315,22 @@ const Participants = () => {
                   name={`period_${index}`}
                   label={`Period ${index + 1}`}
                   initialValue={[dayjs(period.startDate), dayjs(period.endDate)]}
-                  rules={[{ required: true, message: 'Please select a date range' }]}
+                  rules={[
+                    { required: true, message: 'Please select a date range' },
+                    {
+                      validator: (_, value) => {
+                        if (value && !isDateRangeValid(value)) {
+                          return Promise.reject('Date range must be within travel period');
+                        }
+                        return Promise.resolve();
+                      }
+                    }
+                  ]}
                 >
                   <RangePicker 
                     className="w-full" 
                     format="YYYY-MM-DD"
+                    disabledDate={disabledDate}
                   />
                 </Form.Item>
                 
@@ -373,11 +406,22 @@ const Participants = () => {
                 <Form.Item
                   name={`period_${index}`}
                   label={`Period ${index + 1}`}
-                  rules={[{ required: true, message: 'Please select a date range' }]}
+                  rules={[
+                    { required: true, message: 'Please select a date range' },
+                    {
+                      validator: (_, value) => {
+                        if (value && !isDateRangeValid(value)) {
+                          return Promise.reject('Date range must be within travel period');
+                        }
+                        return Promise.resolve();
+                      }
+                    }
+                  ]}
                 >
                   <RangePicker 
                     className="w-full" 
                     format="YYYY-MM-DD"
+                    disabledDate={disabledDate}
                   />
                 </Form.Item>
                 

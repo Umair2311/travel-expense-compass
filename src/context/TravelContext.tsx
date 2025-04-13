@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { Travel, Participant, Expense, AdvanceContribution, Settlement, ExpenseType, DateRange } from '../types/models';
-import { format, isWithinInterval, differenceInDays, addDays } from 'date-fns';
+import { format, isWithinInterval, differenceInDays, addDays, isAfter, isBefore } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
 interface TravelContextType {
@@ -37,6 +37,7 @@ interface TravelContextType {
   exportToExcel: () => void;
   getParticipantById: (id: string) => Participant | undefined;
   getExpenseTypeColor: (type: ExpenseType) => string;
+  validateParticipationPeriod: (dateRange: DateRange) => boolean;
 }
 
 const TravelContext = createContext<TravelContextType | undefined>(undefined);
@@ -168,8 +169,30 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
+  const validateParticipationPeriod = (dateRange: DateRange): boolean => {
+    if (!currentTravel) return false;
+    
+    if (isBefore(dateRange.startDate, currentTravel.startDate) || 
+        isAfter(dateRange.endDate, currentTravel.endDate)) {
+      return false;
+    }
+    
+    return true;
+  };
+
   const addParticipant = (name: string, email: string | undefined, participationPeriods: DateRange[], initialContribution?: number) => {
     if (!currentTravel) return;
+
+    for (const period of participationPeriods) {
+      if (!validateParticipationPeriod(period)) {
+        toast({
+          title: 'Invalid participation period',
+          description: 'Participation period must be within the travel date range.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
 
     const newParticipant: Participant = {
       id: uuidv4(),
@@ -210,6 +233,17 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const updateParticipant = (updatedParticipant: Participant) => {
     if (!currentTravel) return;
+
+    for (const period of updatedParticipant.participationPeriods) {
+      if (!validateParticipationPeriod(period)) {
+        toast({
+          title: 'Invalid participation period',
+          description: 'Participation period must be within the travel date range.',
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
 
     const updatedTravel: Travel = {
       ...currentTravel,
@@ -560,7 +594,8 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
-      const XLSX = (await import('xlsx')).default;
+      const xlsx = await import('xlsx');
+      const XLSX = xlsx.default;
       
       const settlements = calculateSettlements();
       
@@ -713,6 +748,7 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     exportToExcel,
     getParticipantById,
     getExpenseTypeColor,
+    validateParticipationPeriod,
   };
 
   return (
