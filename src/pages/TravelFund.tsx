@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -50,6 +49,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
 const TravelFund = () => {
@@ -74,7 +74,6 @@ const TravelFund = () => {
   const [sortBy, setSortBy] = useState<'date' | 'amount'>('date');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
   
-  // Redirect if no current travel
   if (!currentTravel) {
     navigate('/');
     return null;
@@ -126,7 +125,6 @@ const TravelFund = () => {
       comment || undefined
     );
     
-    // Reset form
     setAmount('');
     setDate(new Date());
     setParticipantId('');
@@ -159,7 +157,6 @@ const TravelFund = () => {
     
     updateAdvanceContribution(updatedContribution);
     
-    // Reset form
     setEditingContribution(null);
     setAmount('');
     setDate(new Date());
@@ -368,7 +365,6 @@ const TravelFund = () => {
         </Card>
       </div>
       
-      {/* Add Contribution Dialog */}
       <Dialog 
         open={isAddDialogOpen} 
         onOpenChange={(open) => {
@@ -445,7 +441,7 @@ const TravelFund = () => {
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
+                  <CalendarComponent
                     mode="single"
                     selected={date}
                     onSelect={(newDate) => newDate && setDate(newDate)}
@@ -476,7 +472,6 @@ const TravelFund = () => {
         </DialogContent>
       </Dialog>
       
-      {/* Edit Contribution Dialog */}
       {editingContribution && (
         <Dialog 
           open={isEditDialogOpen} 
@@ -554,7 +549,7 @@ const TravelFund = () => {
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
+                    <CalendarComponent
                       mode="single"
                       selected={date}
                       onSelect={(newDate) => newDate && setDate(newDate)}

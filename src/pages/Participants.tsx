@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -55,7 +54,6 @@ const Participants = () => {
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
   const [nameError, setNameError] = useState('');
   
-  // Redirect if no current travel
   if (!currentTravel) {
     navigate('/');
     return null;
@@ -69,7 +67,6 @@ const Participants = () => {
     
     addParticipant(name, email || undefined, participationPeriods);
     
-    // Reset form
     setName('');
     setEmail('');
     setParticipationPeriods([{
@@ -100,7 +97,6 @@ const Participants = () => {
     
     updateParticipant(updatedParticipant);
     
-    // Reset form
     setEditingParticipant(null);
     setName('');
     setEmail('');
