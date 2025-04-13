@@ -217,11 +217,24 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
 
     if (initialContribution && initialContribution > 0) {
-      addAdvanceContribution(
-        newParticipant.id,
-        initialContribution,
-        new Date(),
-        "Initial contribution"
+      const newContribution: AdvanceContribution = {
+        id: uuidv4(),
+        participantId: newParticipant.id,
+        amount: initialContribution,
+        date: new Date(),
+        comment: "Initial contribution",
+        created: new Date(),
+      };
+      
+      const travelWithContribution = {
+        ...updatedTravel,
+        advanceContributions: [...updatedTravel.advanceContributions, newContribution],
+        updated: new Date(),
+      };
+      
+      setCurrentTravel(travelWithContribution);
+      setTravels((prev) =>
+        prev.map((travel) => (travel.id === currentTravel.id ? travelWithContribution : travel))
       );
     }
 
@@ -594,8 +607,7 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
-      const xlsx = await import('xlsx');
-      const XLSX = xlsx.default;
+      const XLSX = await import('xlsx').then(module => module.default);
       
       const settlements = calculateSettlements();
       

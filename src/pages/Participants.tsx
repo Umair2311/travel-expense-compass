@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, Button, Input, Modal, Form, DatePicker, Space, Typography, List, Tag, Popconfirm, InputNumber } from 'antd';
 import { PlusOutlined, DeleteOutlined, EditOutlined, CalendarOutlined } from '@ant-design/icons';
@@ -23,8 +23,13 @@ const Participants = () => {
   const [participationPeriods, setParticipationPeriods] = useState<DateRange[]>([]);
   
   // Redirect if no current travel
+  useEffect(() => {
+    if (!currentTravel) {
+      navigate('/');
+    }
+  }, [currentTravel, navigate]);
+  
   if (!currentTravel) {
-    navigate('/');
     return null;
   }
   
@@ -49,11 +54,16 @@ const Participants = () => {
       };
     });
     
+    // Ensure initialContribution is a number or undefined
+    const initialContribution = values.initialContribution 
+      ? parseFloat(values.initialContribution) 
+      : undefined;
+    
     addParticipant(
       values.name, 
       values.email || undefined, 
       periods,
-      values.initialContribution ? parseFloat(values.initialContribution) : undefined
+      initialContribution
     );
     
     setIsAddModalOpen(false);
