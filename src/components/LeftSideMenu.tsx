@@ -1,5 +1,5 @@
 
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
 import { 
@@ -67,7 +67,6 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
     if (travel) {
       setCurrentTravel(travel);
       toast({
-        title: 'Travel loaded',
         description: `${travel.name} has been loaded.`,
       });
       navigate('/');

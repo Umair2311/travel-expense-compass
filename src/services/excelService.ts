@@ -62,7 +62,7 @@ export const exportToExcel = async (data: ExportData) => {
     ['Start Date', format(new Date(travel.startDate), 'MMMM d, yyyy')],
     ['End Date', format(new Date(travel.endDate), 'MMMM d, yyyy')],
     ['Description', travel.description || 'N/A'],
-    ['Currency', travel.currency],
+    ['Currency', travel.currency || 'USD'],
     ['Participants', participants.length],
     ['Total Expenses', expenses.reduce((sum, exp) => sum + exp.amount, 0)],
     ['Created Date', format(new Date(travel.created), 'MMMM d, yyyy')]
@@ -86,7 +86,7 @@ export const exportToExcel = async (data: ExportData) => {
   const participantsSheet = workbook.addWorksheet('Participants');
   
   // Add headers
-  const participantsHeaders = ['Name', 'Email', 'Start Date', 'End Date', 'Days', 'Created'];
+  const participantsHeaders = ['Name', 'Email', 'Start Date', 'End Date', 'Days'];
   const participantsHeaderRow = participantsSheet.addRow(participantsHeaders);
   
   // Apply header style
@@ -106,8 +106,7 @@ export const exportToExcel = async (data: ExportData) => {
       participant.email || 'N/A',
       format(new Date(startDate), 'MMM d, yyyy'),
       format(new Date(endDate), 'MMM d, yyyy'),
-      days.toString(),
-      format(new Date(participant.created), 'MMM d, yyyy HH:mm')
+      days.toString()
     ]);
     
     // Apply data style
@@ -127,7 +126,7 @@ export const exportToExcel = async (data: ExportData) => {
   const expensesSheet = workbook.addWorksheet('Expenses');
   
   // Add headers
-  const expensesHeaders = ['Date', 'Description', 'Amount', 'Paid By', 'Category', 'Shared With'];
+  const expensesHeaders = ['Date', 'Type', 'Amount', 'Paid By', 'Shared With', 'Comment'];
   const expensesHeaderRow = expensesSheet.addRow(expensesHeaders);
   
   // Apply header style
@@ -137,18 +136,26 @@ export const exportToExcel = async (data: ExportData) => {
   
   // Add data rows
   expenses.forEach(expense => {
-    const paidBy = participants.find(p => p.id === expense.paidById)?.name || 'Unknown';
-    const sharedWith = expense.splitMode === 'all' 
-      ? 'All Participants' 
-      : expense.splitIds?.map(id => participants.find(p => p.id === id)?.name).join(', ') || 'Unknown';
+    const paidBy = expense.paidFromFund ? 'Travel Fund' : 
+      expense.paidBy.map(p => {
+        const name = participants.find(part => part.id === p.participantId)?.name || 'Unknown';
+        return `${name} (${p.amount})`;
+      }).join(', ');
+    
+    const sharedWith = expense.sharedAmong
+      .filter(s => s.included)
+      .map(s => {
+        const name = participants.find(p => p.id === s.participantId)?.name || 'Unknown';
+        return s.weight !== 1 ? `${name} (${s.weight}x)` : name;
+      }).join(', ');
     
     const row = expensesSheet.addRow([
       format(new Date(expense.date), 'MMM d, yyyy'),
-      expense.description,
+      expense.type + (expense.customType ? ` (${expense.customType})` : ''),
       expense.amount.toString(),
       paidBy,
-      expense.category || 'Other',
-      sharedWith
+      sharedWith,
+      expense.comment || ''
     ]);
     
     // Apply data style
@@ -204,7 +211,7 @@ export const exportToExcel = async (data: ExportData) => {
   const settlementsSheet = workbook.addWorksheet('Settlements');
   
   // Add headers
-  const settlementsHeaders = ['From', 'To', 'Amount', 'Status'];
+  const settlementsHeaders = ['Participant', 'Advance Paid', 'Personally Paid', 'Expense Share', 'Due Amount', 'Refund Amount', 'Donated'];
   const settlementsHeaderRow = settlementsSheet.addRow(settlementsHeaders);
   
   // Apply header style
@@ -214,14 +221,14 @@ export const exportToExcel = async (data: ExportData) => {
   
   // Add data rows
   settlements.forEach(settlement => {
-    const fromName = participants.find(p => p.id === settlement.fromParticipantId)?.name || 'Unknown';
-    const toName = participants.find(p => p.id === settlement.toParticipantId)?.name || 'Unknown';
-    
     const row = settlementsSheet.addRow([
-      fromName,
-      toName,
-      settlement.amount.toString(),
-      settlement.status || 'Pending'
+      settlement.name,
+      settlement.advancePaid.toString(),
+      settlement.personallyPaid.toString(),
+      settlement.expenseShare.toString(),
+      settlement.dueAmount.toString(),
+      settlement.refundAmount.toString(),
+      settlement.donated ? 'Yes' : 'No'
     ]);
     
     // Apply data style

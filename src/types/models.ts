@@ -1,8 +1,11 @@
+
 export interface Travel {
   id: string;
   name: string;
   startDate: Date;
   endDate: Date;
+  currency: string; // Added currency
+  description?: string; // Added description
   participants: Participant[];
   expenses: Expense[];
   advanceContributions: AdvanceContribution[];
@@ -84,28 +87,20 @@ export interface TravelContextType {
   createTravel: (name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
   updateTravel: (id: string, name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
   deleteTravel: (id: string) => void;
-  addParticipant: (name: string, email?: string, participationPeriods?: DateRange[], initialContribution?: number) => void;
-  updateParticipant: (id: string, name: string, email?: string, participationPeriods?: DateRange[]) => void;
+  addParticipant: (name: string, email?: string, participationPeriods?: ParticipationPeriod[], initialContribution?: number) => void;
+  updateParticipant: (participant: Participant) => void;
   deleteParticipant: (id: string) => void;
   addExpense: (
-    description: string,
     amount: number,
     date: Date,
-    paidById: string,
-    splitMode: "all" | "custom",
-    splitIds?: string[],
-    category?: string
+    type: ExpenseType,
+    customType?: string,
+    paidBy: ExpensePayer[],
+    paidFromFund: boolean,
+    sharedAmong: ExpenseParticipant[],
+    comment?: string
   ) => void;
-  updateExpense: (
-    id: string,
-    description: string,
-    amount: number,
-    date: Date,
-    paidById: string,
-    splitMode: "all" | "custom",
-    splitIds?: string[],
-    category?: string
-  ) => void;
+  updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
   addAdvanceContribution: (participantId: string, amount: number, date: Date, comment?: string) => void;
   updateAdvanceContribution: (id: string, participantId: string, amount: number, date: Date, comment?: string) => void;
@@ -115,4 +110,6 @@ export interface TravelContextType {
   exportToExcel: () => void;
   exportToJSON: () => void;
   importFromJSON: (file: File) => Promise<boolean>;
+  isParticipantPresentOnDate: (participantId: string, date: Date) => boolean;
+  validateParticipationPeriod: (period: { startDate: Date, endDate: Date }) => boolean;
 }

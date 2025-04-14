@@ -1,5 +1,5 @@
 
-import { Travel } from '@/types/models';
+import { Travel, Participant, ParticipationPeriod } from '@/types/models';
 import { saveAs } from 'file-saver';
 
 // Export travel data to JSON file
@@ -35,18 +35,18 @@ export const importTravelFromJSON = (file: File): Promise<Travel> => {
           
           travel.participants = travel.participants.map(p => ({
             ...p,
-            created: new Date(p.created),
             participationPeriods: p.participationPeriods.map(period => ({
               ...period,
               startDate: new Date(period.startDate),
               endDate: new Date(period.endDate),
-            }))
+            })) as ParticipationPeriod[]
           }));
           
           travel.expenses = travel.expenses.map(e => ({
             ...e,
             date: new Date(e.date),
             created: new Date(e.created),
+            updated: new Date(e.updated)
           }));
           
           travel.advanceContributions = travel.advanceContributions.map(c => ({

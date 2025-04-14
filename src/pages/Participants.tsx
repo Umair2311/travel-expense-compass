@@ -5,14 +5,14 @@ import { Card, Button, Input, Modal, Form, DatePicker, Space, Typography, List, 
 import { PlusOutlined, DeleteOutlined, EditOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useTravel } from '@/context/TravelContext';
 import Layout from '@/components/Layout';
-import { Participant, DateRange } from '@/types/models';
+import { Participant, ParticipationPeriod } from '@/types/models';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
 
 const Participants = () => {
-  const { currentTravel, addParticipant, updateParticipant, removeParticipant, validateParticipationPeriod } = useTravel();
+  const { currentTravel, addParticipant, updateParticipant, deleteParticipant, validateParticipationPeriod } = useTravel();
   const navigate = useNavigate();
   const [form] = Form.useForm();
   const [editForm] = Form.useForm();
@@ -20,7 +20,7 @@ const Participants = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
-  const [participationPeriods, setParticipationPeriods] = useState<DateRange[]>([]);
+  const [participationPeriods, setParticipationPeriods] = useState<ParticipationPeriod[]>([]);
   
   // Redirect if no current travel
   useEffect(() => {
@@ -45,7 +45,7 @@ const Participants = () => {
   
   const handleAddSubmit = (values: any) => {
     // Convert periods from form
-    const periods = participationPeriods.map((period, index) => {
+    const periods: ParticipationPeriod[] = participationPeriods.map((period, index) => {
       const dateRange = values[`period_${index}`];
       return {
         id: period.id || Date.now().toString() + index,

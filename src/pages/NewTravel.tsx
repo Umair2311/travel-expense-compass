@@ -1,15 +1,15 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { DatePicker, Button, Input, Form, Card, Space, Typography } from 'antd';
+import { DatePicker, Button, Input, Form, Card, Space, Typography, Select } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import { useTravel } from '@/context/TravelContext';
 import Layout from '@/components/Layout';
-import { DateRange } from '@/types/models';
 import dayjs from 'dayjs';
 
 const { RangePicker } = DatePicker;
 const { Title, Text } = Typography;
+const { Option } = Select;
 
 const NewTravel = () => {
   const navigate = useNavigate();
@@ -20,13 +20,13 @@ const NewTravel = () => {
   const handleSubmit = (values: any) => {
     setIsLoading(true);
     
-    const dateRange: DateRange = {
-      startDate: values.dateRange[0].toDate(),
-      endDate: values.dateRange[1].toDate(),
-    };
-    
-    // Create travel
-    createTravel(values.name, dateRange);
+    createTravel(
+      values.name,
+      values.dateRange[0].toDate(),
+      values.dateRange[1].toDate(),
+      values.currency || 'USD',
+      values.description
+    );
     
     setIsLoading(false);
     navigate('/');
@@ -47,7 +47,8 @@ const NewTravel = () => {
             onFinish={handleSubmit}
             requiredMark={false}
             initialValues={{
-              dateRange: [dayjs(), dayjs().add(7, 'day')]
+              dateRange: [dayjs(), dayjs().add(7, 'day')],
+              currency: 'USD'
             }}
           >
             <Form.Item
@@ -67,6 +68,29 @@ const NewTravel = () => {
                 className="w-full" 
                 format="YYYY-MM-DD"
               />
+            </Form.Item>
+            
+            <Form.Item
+              name="currency"
+              label="Currency"
+              rules={[{ required: true, message: 'Please select a currency' }]}
+            >
+              <Select placeholder="Select currency">
+                <Option value="USD">USD ($)</Option>
+                <Option value="EUR">EUR (€)</Option>
+                <Option value="GBP">GBP (£)</Option>
+                <Option value="JPY">JPY (¥)</Option>
+                <Option value="CAD">CAD ($)</Option>
+                <Option value="AUD">AUD ($)</Option>
+                <Option value="INR">INR (₹)</Option>
+              </Select>
+            </Form.Item>
+            
+            <Form.Item
+              name="description"
+              label="Description (Optional)"
+            >
+              <Input.TextArea placeholder="Add a short description of your travel" rows={3} />
             </Form.Item>
             
             <div className="flex justify-between mt-6">

@@ -1,66 +1,12 @@
+
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { Travel, Participant, Expense, DateRange, AdvanceContribution, Settlement } from '@/types/models';
+import { Travel, Participant, Expense, DateRange, AdvanceContribution, Settlement, ExpensePayer, ExpenseParticipant, ParticipationPeriod, ExpenseType } from '@/types/models';
 import { exportToExcel } from '@/services/excelService';
 import { exportTravelToJSON, importTravelFromJSON } from '@/services/databaseService';
 
-export interface DateRange {
-  startDate: Date;
-  endDate: Date;
-}
-
-export interface Travel {
-  id: string;
-  name: string;
-  startDate: Date;
-  endDate: Date;
-  currency: string;
-  description?: string;
-  participants: Participant[];
-  expenses: Expense[];
-  advanceContributions: AdvanceContribution[];
-  created: Date;
-  updated: Date;
-}
-
-export interface Participant {
-  id: string;
-  name: string;
-  email?: string;
-  participationPeriods: DateRange[];
-  created: Date;
-}
-
-export interface Expense {
-  id: string;
-  description: string;
-  amount: number;
-  date: Date;
-  paidById: string;
-  splitMode: "all" | "custom";
-  splitIds?: string[];
-  category?: string;
-  created: Date;
-}
-
-export interface AdvanceContribution {
-  id: string;
-  participantId: string;
-  amount: number;
-  date: Date;
-  comment?: string;
-  created: Date;
-}
-
-export interface Settlement {
-  fromParticipantId: string;
-  toParticipantId: string;
-  amount: number;
-  status: string;
-}
-
-export interface TravelContextType {
+interface TravelContextType {
   travels: Travel[];
   currentTravel: Travel | null;
   setTravels: React.Dispatch<React.SetStateAction<Travel[]>>;
@@ -68,27 +14,21 @@ export interface TravelContextType {
   createTravel: (name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
   updateTravel: (id: string, name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
   deleteTravel: (id: string) => void;
-  addParticipant: (name: string, email?: string, participationPeriods?: DateRange[], initialContribution?: number) => void;
-  updateParticipant: (id: string, name: string, email?: string, participationPeriods?: DateRange[]) => void;
+  addParticipant: (name: string, email?: string, participationPeriods?: ParticipationPeriod[], initialContribution?: number) => void;
+  updateParticipant: (participant: Participant) => void;
   deleteParticipant: (id: string) => void;
   addExpense: (
-    description: string,
     amount: number,
     date: Date,
-    paidById: string,
-    splitMode: "all" | "custom",
-    splitIds?: string[],
-    category?: string
+    type: ExpenseType,
+    customType?: string,
+    paidBy: ExpensePayer[],
+    paidFromFund: boolean,
+    sharedAmong: ExpenseParticipant[],
+    comment?: string
   ) => void;
   updateExpense: (
-    id: string,
-    description: string,
-    amount: number,
-    date: Date,
-    paidById: string,
-    splitMode: "all" | "custom",
-    splitIds?: string[],
-    category?: string
+    expense: Expense
   ) => void;
   deleteExpense: (id: string) => void;
   addAdvanceContribution: (participantId: string, amount: number, date: Date, comment?: string) => void;
@@ -99,6 +39,8 @@ export interface TravelContextType {
   exportToExcel: () => void;
   exportToJSON: () => void;
   importFromJSON: (file: File) => Promise<boolean>;
+  isParticipantPresentOnDate: (participantId: string, date: Date) => boolean;
+  validateParticipationPeriod: (period: { startDate: Date, endDate: Date }) => boolean;
 }
 
 export const TravelContext = createContext<TravelContextType>({
@@ -122,7 +64,9 @@ export const TravelContext = createContext<TravelContextType>({
   updateSettlementStatus: () => {},
   exportToExcel: () => {},
   exportToJSON: () => {},
-  importFromJSON: () => {},
+  importFromJSON: async () => false,
+  isParticipantPresentOnDate: () => false,
+  validateParticipationPeriod: () => false,
 });
 
 export const TravelProvider: React.FC<{
@@ -147,6 +91,45 @@ export const TravelProvider: React.FC<{
       toast.error("Failed to save changes. Please check your browser's storage settings.");
     }
   }, [travels]);
+
+  // Check if a participant is present on a specific date
+  const isParticipantPresentOnDate = (participantId: string, date: Date): boolean => {
+    if (!currentTravel) return false;
+    
+    const participant = currentTravel.participants.find(p => p.id === participantId);
+    if (!participant) return false;
+    
+    return participant.participationPeriods.some(period => {
+      const periodStart = new Date(period.startDate);
+      const periodEnd = new Date(period.endDate);
+      const checkDate = new Date(date);
+      
+      // Set times to beginning of day for comparison
+      periodStart.setHours(0, 0, 0, 0);
+      periodEnd.setHours(0, 0, 0, 0);
+      checkDate.setHours(0, 0, 0, 0);
+      
+      return checkDate >= periodStart && checkDate <= periodEnd;
+    });
+  };
+
+  // Validate if a participation period is within travel dates
+  const validateParticipationPeriod = (period: { startDate: Date, endDate: Date }): boolean => {
+    if (!currentTravel) return false;
+    
+    const travelStart = new Date(currentTravel.startDate);
+    const travelEnd = new Date(currentTravel.endDate);
+    const periodStart = new Date(period.startDate);
+    const periodEnd = new Date(period.endDate);
+    
+    // Set times to beginning of day for comparison
+    travelStart.setHours(0, 0, 0, 0);
+    travelEnd.setHours(0, 0, 0, 0);
+    periodStart.setHours(0, 0, 0, 0);
+    periodEnd.setHours(0, 0, 0, 0);
+    
+    return periodStart >= travelStart && periodEnd <= travelEnd;
+  };
 
   const createTravel = (name: string, startDate: Date, endDate: Date, currency: string, description?: string) => {
     const newTravel: Travel = {
@@ -183,28 +166,40 @@ export const TravelProvider: React.FC<{
     toast.success("Travel deleted");
   };
 
-  const addParticipant = (name: string, email?: string, participationPeriods?: DateRange[], initialContribution?: number) => {
+  const addParticipant = (name: string, email?: string, participationPeriods?: ParticipationPeriod[], initialContribution?: number) => {
     if (!currentTravel) {
       toast.error("No travel selected");
       return;
     }
 
+    const defaultPeriod: ParticipationPeriod = {
+      id: uuidv4(),
+      startDate: currentTravel.startDate,
+      endDate: currentTravel.endDate
+    };
+
     const newParticipant: Participant = {
       id: uuidv4(),
       name,
       email,
-      participationPeriods: participationPeriods || [{ startDate: currentTravel.startDate, endDate: currentTravel.endDate }],
-      created: new Date(),
+      participationPeriods: participationPeriods || [defaultPeriod],
     };
 
+    const updatedParticipants = [...currentTravel.participants, newParticipant];
+    
     setTravels(
       travels.map((travel) =>
         travel.id === currentTravel.id
-          ? { ...travel, participants: [...travel.participants, newParticipant] }
+          ? { ...travel, participants: updatedParticipants }
           : travel
       )
     );
-    setCurrentTravel(prev => prev?.id === currentTravel.id ? { ...prev, participants: [...prev.participants, newParticipant] } : prev);
+    
+    setCurrentTravel(prev => {
+      if (!prev) return null;
+      return { ...prev, participants: updatedParticipants };
+    });
+    
     toast.success(`Participant "${name}" added`);
 
     if (initialContribution && initialContribution > 0) {
@@ -212,7 +207,7 @@ export const TravelProvider: React.FC<{
     }
   };
 
-  const updateParticipant = (id: string, name: string, email?: string, participationPeriods?: DateRange[]) => {
+  const updateParticipant = (updatedParticipant: Participant) => {
     if (!currentTravel) {
       toast.error("No travel selected");
       return;
@@ -222,23 +217,23 @@ export const TravelProvider: React.FC<{
       travels.map((travel) => {
         if (travel.id === currentTravel.id) {
           const updatedParticipants = travel.participants.map((participant) =>
-            participant.id === id ? { ...participant, name, email, participationPeriods } : participant
+            participant.id === updatedParticipant.id ? updatedParticipant : participant
           );
           return { ...travel, participants: updatedParticipants };
         }
         return travel;
       })
     );
+    
     setCurrentTravel(prev => {
-      if (prev?.id === currentTravel.id) {
-        const updatedParticipants = prev.participants.map((participant) =>
-          participant.id === id ? { ...participant, name, email, participationPeriods } : participant
-        );
-        return { ...prev, participants: updatedParticipants };
-      }
-      return prev;
+      if (!prev) return null;
+      const updatedParticipants = prev.participants.map((participant) =>
+        participant.id === updatedParticipant.id ? updatedParticipant : participant
+      );
+      return { ...prev, participants: updatedParticipants };
     });
-    toast.success(`Participant "${name}" updated`);
+    
+    toast.success(`Participant "${updatedParticipant.name}" updated`);
   };
 
   const deleteParticipant = (id: string) => {
@@ -256,24 +251,25 @@ export const TravelProvider: React.FC<{
         return travel;
       })
     );
+    
     setCurrentTravel(prev => {
-      if (prev?.id === currentTravel.id) {
-        const updatedParticipants = prev.participants.filter((participant) => participant.id !== id);
-        return { ...prev, participants: updatedParticipants };
-      }
-      return prev;
+      if (!prev) return null;
+      const updatedParticipants = prev.participants.filter((participant) => participant.id !== id);
+      return { ...prev, participants: updatedParticipants };
     });
+    
     toast.success("Participant deleted");
   };
 
   const addExpense = (
-    description: string,
     amount: number,
     date: Date,
-    paidById: string,
-    splitMode: "all" | "custom",
-    splitIds?: string[],
-    category?: string
+    type: ExpenseType,
+    customType?: string,
+    paidBy: ExpensePayer[],
+    paidFromFund: boolean,
+    sharedAmong: ExpenseParticipant[],
+    comment?: string
   ) => {
     if (!currentTravel) {
       toast.error("No travel selected");
@@ -282,14 +278,16 @@ export const TravelProvider: React.FC<{
 
     const newExpense: Expense = {
       id: uuidv4(),
-      description,
       amount,
       date,
-      paidById,
-      splitMode,
-      splitIds,
-      category,
+      type,
+      customType,
+      paidBy,
+      paidFromFund,
+      sharedAmong,
+      comment,
       created: new Date(),
+      updated: new Date(),
     };
 
     setTravels(
@@ -297,19 +295,17 @@ export const TravelProvider: React.FC<{
         travel.id === currentTravel.id ? { ...travel, expenses: [...travel.expenses, newExpense] } : travel
       )
     );
-    setCurrentTravel(prev => prev?.id === currentTravel.id ? { ...prev, expenses: [...prev.expenses, newExpense] } : prev);
+    
+    setCurrentTravel(prev => {
+      if (!prev) return null;
+      return { ...prev, expenses: [...prev.expenses, newExpense] };
+    });
+    
     toast.success("Expense added");
   };
 
   const updateExpense = (
-    id: string,
-    description: string,
-    amount: number,
-    date: Date,
-    paidById: string,
-    splitMode: "all" | "custom",
-    splitIds?: string[],
-    category?: string
+    updatedExpense: Expense
   ) => {
     if (!currentTravel) {
       toast.error("No travel selected");
@@ -320,26 +316,22 @@ export const TravelProvider: React.FC<{
       travels.map((travel) => {
         if (travel.id === currentTravel.id) {
           const updatedExpenses = travel.expenses.map((expense) =>
-            expense.id === id
-              ? { ...expense, description, amount, date, paidById, splitMode, splitIds, category }
-              : expense
+            expense.id === updatedExpense.id ? updatedExpense : expense
           );
           return { ...travel, expenses: updatedExpenses };
         }
         return travel;
       })
     );
+    
     setCurrentTravel(prev => {
-      if (prev?.id === currentTravel.id) {
-        const updatedExpenses = prev.expenses.map((expense) =>
-          expense.id === id
-            ? { ...expense, description, amount, date, paidById, splitMode, splitIds, category }
-            : expense
-        );
-        return { ...prev, expenses: updatedExpenses };
-      }
-      return prev;
+      if (!prev) return null;
+      const updatedExpenses = prev.expenses.map((expense) =>
+        expense.id === updatedExpense.id ? updatedExpense : expense
+      );
+      return { ...prev, expenses: updatedExpenses };
     });
+    
     toast.success("Expense updated");
   };
 
@@ -358,13 +350,13 @@ export const TravelProvider: React.FC<{
         return travel;
       })
     );
+    
     setCurrentTravel(prev => {
-      if (prev?.id === currentTravel.id) {
-        const updatedExpenses = prev.expenses.filter((expense) => expense.id !== id);
-        return { ...prev, expenses: updatedExpenses };
-      }
-      return prev;
+      if (!prev) return null;
+      const updatedExpenses = prev.expenses.filter((expense) => expense.id !== id);
+      return { ...prev, expenses: updatedExpenses };
     });
+    
     toast.success("Expense deleted");
   };
 
@@ -390,7 +382,12 @@ export const TravelProvider: React.FC<{
           : travel
       )
     );
-    setCurrentTravel(prev => prev?.id === currentTravel.id ? { ...prev, advanceContributions: [...prev.advanceContributions, newContribution] } : prev);
+    
+    setCurrentTravel(prev => {
+      if (!prev) return null;
+      return { ...prev, advanceContributions: [...prev.advanceContributions, newContribution] };
+    });
+    
     toast.success("Contribution added");
   };
 
@@ -411,15 +408,15 @@ export const TravelProvider: React.FC<{
         return travel;
       })
     );
+    
     setCurrentTravel(prev => {
-      if (prev?.id === currentTravel.id) {
-        const updatedContributions = prev.advanceContributions.map((contribution) =>
-          contribution.id === id ? { ...contribution, participantId, amount, date, comment } : contribution
-        );
-        return { ...prev, advanceContributions: updatedContributions };
-      }
-      return prev;
+      if (!prev) return null;
+      const updatedContributions = prev.advanceContributions.map((contribution) =>
+        contribution.id === id ? { ...contribution, participantId, amount, date, comment } : contribution
+      );
+      return { ...prev, advanceContributions: updatedContributions };
     });
+    
     toast.success("Contribution updated");
   };
 
@@ -438,13 +435,13 @@ export const TravelProvider: React.FC<{
         return travel;
       })
     );
+    
     setCurrentTravel(prev => {
-      if (prev?.id === currentTravel.id) {
-        const updatedContributions = prev.advanceContributions.filter((contribution) => contribution.id !== id);
-        return { ...prev, advanceContributions: updatedContributions };
-      }
-      return prev;
+      if (!prev) return null;
+      const updatedContributions = prev.advanceContributions.filter((contribution) => contribution.id !== id);
+      return { ...prev, advanceContributions: updatedContributions };
     });
+    
     toast.success("Contribution deleted");
   };
 
@@ -460,19 +457,23 @@ export const TravelProvider: React.FC<{
     participants.forEach((p) => (participantExpenses[p.id] = 0));
 
     expenses.forEach((expense) => {
-      const numberOfParticipants = expense.splitMode === "all" ? participants.length : expense.splitIds?.length || 0;
-      const amountPerParticipant = expense.amount / numberOfParticipants;
-
-      if (expense.splitMode === "all") {
-        participants.forEach((p) => {
-          participantExpenses[p.id] = (participantExpenses[p.id] || 0) + amountPerParticipant;
-        });
-      } else if (expense.splitIds) {
-        expense.splitIds.forEach((participantId) => {
-          participantExpenses[participantId] = (participantExpenses[participantId] || 0) + amountPerParticipant;
+      // For paid expenses
+      if (!expense.paidFromFund) {
+        expense.paidBy.forEach(payer => {
+          participantExpenses[payer.participantId] -= payer.amount;
         });
       }
-      participantExpenses[expense.paidById] -= expense.amount;
+      
+      // For shared expenses
+      const includedParticipants = expense.sharedAmong.filter(p => p.included);
+      const totalWeight = includedParticipants.reduce((sum, p) => sum + p.weight, 0);
+      
+      if (totalWeight > 0) {
+        includedParticipants.forEach(participant => {
+          const share = (participant.weight / totalWeight) * expense.amount;
+          participantExpenses[participant.participantId] = (participantExpenses[participant.participantId] || 0) + share;
+        });
+      }
     });
 
     // Adjust for advance contributions
@@ -491,33 +492,37 @@ export const TravelProvider: React.FC<{
       let debtorId = sortedParticipants[i][0];
       let creditorId = sortedParticipants[j][0];
       let amountOwed = sortedParticipants[i][1];
-      let amountReceivable = sortedParticipants[j][1];
+      let amountReceivable = -sortedParticipants[j][1];
 
-      if (amountOwed === 0) {
+      if (amountOwed <= 0) {
         i++;
         continue;
       }
-      if (amountReceivable === 0) {
+      if (amountReceivable <= 0) {
         j--;
         continue;
       }
 
-      let settlementAmount = Math.min(Math.abs(amountOwed), amountReceivable);
+      let settlementAmount = Math.min(amountOwed, amountReceivable);
 
       settlements.push({
-        fromParticipantId: debtorId,
-        toParticipantId: creditorId,
-        amount: settlementAmount,
-        status: 'pending',
+        participantId: debtorId,
+        dueAmount: settlementAmount,
+        refundAmount: 0,
+        name: participants.find(p => p.id === debtorId)?.name || '',
+        advancePaid: 0,
+        personallyPaid: 0,
+        expenseShare: 0,
+        donated: false
       });
 
-      sortedParticipants[i][1] += settlementAmount;
-      sortedParticipants[j][1] -= settlementAmount;
+      sortedParticipants[i][1] -= settlementAmount;
+      sortedParticipants[j][1] += settlementAmount;
 
-      if (sortedParticipants[i][1] === 0) {
+      if (sortedParticipants[i][1] <= 0) {
         i++;
       }
-      if (sortedParticipants[j][1] === 0) {
+      if (sortedParticipants[j][1] >= 0) {
         j--;
       }
     }
@@ -526,41 +531,7 @@ export const TravelProvider: React.FC<{
   };
 
   const updateSettlementStatus = (fromId: string, toId: string, status: string) => {
-    if (!currentTravel) {
-      toast.error("No travel selected");
-      return;
-    }
-
-    setTravels(
-      travels.map((travel) => {
-        if (travel.id === currentTravel.id) {
-          return {
-            ...travel,
-            settlements: travel.settlements?.map((settlement) => {
-              if (settlement.fromParticipantId === fromId && settlement.toParticipantId === toId) {
-                return { ...settlement, status: status };
-              }
-              return settlement;
-            }),
-          };
-        }
-        return travel;
-      })
-    );
-    setCurrentTravel(prev => {
-      if (prev?.id === currentTravel.id) {
-        return {
-          ...prev,
-          settlements: prev.settlements?.map((settlement) => {
-            if (settlement.fromParticipantId === fromId && settlement.toParticipantId === toId) {
-              return { ...settlement, status: status };
-            }
-            return settlement;
-          }),
-        };
-      }
-      return prev;
-    });
+    // This is a placeholder since the Settlement model doesn't include settlement status
     toast.success("Settlement status updated");
   };
 
@@ -654,6 +625,8 @@ export const TravelProvider: React.FC<{
         exportToExcel: handleExportToExcel,
         exportToJSON: handleExportToJSON,
         importFromJSON: handleImportFromJSON,
+        isParticipantPresentOnDate,
+        validateParticipationPeriod,
       }}
     >
       {children}

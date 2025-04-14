@@ -131,34 +131,31 @@ const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
         }
       }
       
-      const expenseData = {
-        amount: numericAmount,
-        date: values.date.toDate(),
-        type: values.type as ExpenseType,
-        customType: values.type === 'Custom' ? values.customType : undefined,
-        paidBy: filteredPayers,
-        paidFromFund,
-        sharedAmong: participants,
-        comment: values.comment || undefined,
-      };
-      
       if (expense) {
         // Update existing expense
         updateExpense({
           ...expense,
-          ...expenseData,
+          amount: numericAmount,
+          date: values.date.toDate(),
+          type: values.type as ExpenseType,
+          customType: values.type === 'Custom' ? values.customType : undefined,
+          paidBy: filteredPayers,
+          paidFromFund,
+          sharedAmong: participants,
+          comment: values.comment || undefined,
+          updated: new Date()
         });
       } else {
         // Add new expense
         addExpense(
-          expenseData.amount,
-          expenseData.date,
-          expenseData.type,
-          expenseData.customType,
-          expenseData.paidBy,
-          expenseData.paidFromFund,
-          expenseData.sharedAmong,
-          expenseData.comment
+          numericAmount,
+          values.date.toDate(),
+          values.type as ExpenseType,
+          values.type === 'Custom' ? values.customType : undefined,
+          filteredPayers,
+          paidFromFund,
+          participants,
+          values.comment || undefined
         );
       }
       
