@@ -1,421 +1,378 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { Travel, Participant, Expense, AdvanceContribution, Settlement, ExpenseType, DateRange } from '../types/models';
-import { format, isWithinInterval, differenceInDays, addDays, isAfter, isBefore } from 'date-fns';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from 'sonner';
+import { Travel, Participant, Expense, DateRange, AdvanceContribution, Settlement } from '@/types/models';
+import { exportToExcel } from '@/services/excelService';
+import { exportTravelToJSON, importTravelFromJSON } from '@/services/databaseService';
 
-interface TravelContextType {
-  travels: Travel[];
-  currentTravel: Travel | null;
-  setCurrentTravel: (travel: Travel | null) => void;
-  createTravel: (name: string, dateRange: DateRange) => void;
-  updateTravel: (travel: Travel) => void;
-  deleteTravel: (id: string) => void;
-  addParticipant: (name: string, email: string | undefined, participationPeriods: DateRange[], initialContribution?: number) => void;
-  updateParticipant: (participant: Participant) => void;
-  removeParticipant: (id: string) => void;
-  addExpense: (
-    amount: number,
-    date: Date,
-    type: ExpenseType,
-    customType: string | undefined,
-    paidBy: { participantId: string; amount: number }[],
-    paidFromFund: boolean,
-    sharedAmong: { participantId: string; included: boolean; weight: number }[],
-    comment?: string
-  ) => void;
-  updateExpense: (expense: Expense) => void;
-  deleteExpense: (id: string) => void;
-  addAdvanceContribution: (participantId: string, amount: number, date: Date, comment?: string) => void;
-  updateAdvanceContribution: (contribution: AdvanceContribution) => void;
-  deleteAdvanceContribution: (id: string) => void;
-  calculateSettlements: () => Settlement[];
-  getTravelFundBalance: () => number;
-  getTotalExpenses: () => number;
-  isParticipantPresentOnDate: (participantId: string, date: Date) => boolean;
-  markRefundAsDonated: (participantId: string, donated: boolean) => void;
-  exportToExcel: () => void;
-  getParticipantById: (id: string) => Participant | undefined;
-  getExpenseTypeColor: (type: ExpenseType) => string;
-  validateParticipationPeriod: (dateRange: DateRange) => boolean;
+export interface DateRange {
+  startDate: Date;
+  endDate: Date;
 }
 
-const TravelContext = createContext<TravelContextType | undefined>(undefined);
+export interface Travel {
+  id: string;
+  name: string;
+  startDate: Date;
+  endDate: Date;
+  currency: string;
+  description?: string;
+  participants: Participant[];
+  expenses: Expense[];
+  advanceContributions: AdvanceContribution[];
+  created: Date;
+  updated: Date;
+}
 
-const LOCAL_STORAGE_KEY = 'travelExpenseSplitter';
+export interface Participant {
+  id: string;
+  name: string;
+  email?: string;
+  participationPeriods: DateRange[];
+  created: Date;
+}
 
-export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [travels, setTravels] = useState<Travel[]>([]);
-  const [currentTravel, setCurrentTravel] = useState<Travel | null>(null);
-  const [refundDonations, setRefundDonations] = useState<Record<string, boolean>>({});
-  const { toast } = useToast();
+export interface Expense {
+  id: string;
+  description: string;
+  amount: number;
+  date: Date;
+  paidById: string;
+  splitMode: "all" | "custom";
+  splitIds?: string[];
+  category?: string;
+  created: Date;
+}
 
-  useEffect(() => {
-    const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        
-        const processedTravels = parsedData.travels.map((travel: any) => ({
-          ...travel,
-          startDate: new Date(travel.startDate),
-          endDate: new Date(travel.endDate),
-          created: new Date(travel.created),
-          updated: new Date(travel.updated),
-          participants: travel.participants.map((p: any) => ({
-            ...p,
-            participationPeriods: p.participationPeriods.map((period: any) => ({
-              ...period,
-              startDate: new Date(period.startDate),
-              endDate: new Date(period.endDate),
-            })),
-          })),
-          expenses: travel.expenses.map((e: any) => ({
-            ...e,
-            date: new Date(e.date),
-            created: new Date(e.created),
-            updated: new Date(e.updated),
-          })),
-          advanceContributions: travel.advanceContributions.map((a: any) => ({
-            ...a,
-            date: new Date(a.date),
-            created: new Date(a.created),
-          })),
-        }));
-        
-        setTravels(processedTravels);
-        setRefundDonations(parsedData.refundDonations || {});
-        
-        if (parsedData.currentTravelId && processedTravels.length > 0) {
-          const current = processedTravels.find((t: Travel) => t.id === parsedData.currentTravelId);
-          if (current) {
-            setCurrentTravel(current);
-          }
-        }
-      } catch (error) {
-        console.error('Failed to parse saved travel data:', error);
-        toast({
-          title: 'Error loading saved data',
-          description: 'Your saved travel data could not be loaded properly.',
-          variant: 'destructive',
-        });
-      }
+export interface AdvanceContribution {
+  id: string;
+  participantId: string;
+  amount: number;
+  date: Date;
+  comment?: string;
+  created: Date;
+}
+
+export interface Settlement {
+  fromParticipantId: string;
+  toParticipantId: string;
+  amount: number;
+  status: string;
+}
+
+export interface TravelContextType {
+  travels: Travel[];
+  currentTravel: Travel | null;
+  setTravels: React.Dispatch<React.SetStateAction<Travel[]>>;
+  setCurrentTravel: React.Dispatch<React.SetStateAction<Travel | null>>;
+  createTravel: (name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
+  updateTravel: (id: string, name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
+  deleteTravel: (id: string) => void;
+  addParticipant: (name: string, email?: string, participationPeriods?: DateRange[], initialContribution?: number) => void;
+  updateParticipant: (id: string, name: string, email?: string, participationPeriods?: DateRange[]) => void;
+  deleteParticipant: (id: string) => void;
+  addExpense: (
+    description: string,
+    amount: number,
+    date: Date,
+    paidById: string,
+    splitMode: "all" | "custom",
+    splitIds?: string[],
+    category?: string
+  ) => void;
+  updateExpense: (
+    id: string,
+    description: string,
+    amount: number,
+    date: Date,
+    paidById: string,
+    splitMode: "all" | "custom",
+    splitIds?: string[],
+    category?: string
+  ) => void;
+  deleteExpense: (id: string) => void;
+  addAdvanceContribution: (participantId: string, amount: number, date: Date, comment?: string) => void;
+  updateAdvanceContribution: (id: string, participantId: string, amount: number, date: Date, comment?: string) => void;
+  deleteAdvanceContribution: (id: string) => void;
+  calculateSettlements: () => Settlement[];
+  updateSettlementStatus: (fromId: string, toId: string, status: string) => void;
+  exportToExcel: () => void;
+  exportToJSON: () => void;
+  importFromJSON: (file: File) => Promise<boolean>;
+}
+
+export const TravelContext = createContext<TravelContextType>({
+  travels: [],
+  currentTravel: null,
+  setTravels: () => {},
+  setCurrentTravel: () => {},
+  createTravel: () => {},
+  updateTravel: () => {},
+  deleteTravel: () => {},
+  addParticipant: () => {},
+  updateParticipant: () => {},
+  deleteParticipant: () => {},
+  addExpense: () => {},
+  updateExpense: () => {},
+  deleteExpense: () => {},
+  addAdvanceContribution: () => {},
+  updateAdvanceContribution: () => {},
+  deleteAdvanceContribution: () => {},
+  calculateSettlements: () => [],
+  updateSettlementStatus: () => {},
+  exportToExcel: () => {},
+  exportToJSON: () => {},
+  importFromJSON: () => {},
+});
+
+export const TravelProvider: React.FC<{
+  children: React.ReactNode;
+}> = ({ children }) => {
+  const [travels, setTravels] = useState<Travel[]>(() => {
+    try {
+      const storedTravels = localStorage.getItem('travels');
+      return storedTravels ? JSON.parse(storedTravels) : [];
+    } catch (error) {
+      console.error("Failed to load travels from local storage:", error);
+      return [];
     }
-  }, [toast]);
+  });
+  const [currentTravel, setCurrentTravel] = useState<Travel | null>(null);
 
   useEffect(() => {
-    const dataToSave = {
-      travels,
-      currentTravelId: currentTravel?.id,
-      refundDonations,
-    };
-    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(dataToSave));
-  }, [travels, currentTravel, refundDonations]);
+    try {
+      localStorage.setItem('travels', JSON.stringify(travels));
+    } catch (error) {
+      console.error("Failed to save travels to local storage:", error);
+      toast.error("Failed to save changes. Please check your browser's storage settings.");
+    }
+  }, [travels]);
 
-  const createTravel = (name: string, dateRange: DateRange) => {
+  const createTravel = (name: string, startDate: Date, endDate: Date, currency: string, description?: string) => {
     const newTravel: Travel = {
       id: uuidv4(),
       name,
-      startDate: dateRange.startDate,
-      endDate: dateRange.endDate,
+      startDate,
+      endDate,
+      currency,
+      description,
       participants: [],
       expenses: [],
       advanceContributions: [],
       created: new Date(),
       updated: new Date(),
     };
-
-    setTravels((prev) => [...prev, newTravel]);
+    setTravels([...travels, newTravel]);
     setCurrentTravel(newTravel);
-    toast({
-      title: 'Travel created',
-      description: `"${name}" has been created successfully.`,
-    });
+    toast.success(`Travel "${name}" created`);
   };
 
-  const updateTravel = (updatedTravel: Travel) => {
-    setTravels((prev) =>
-      prev.map((travel) =>
-        travel.id === updatedTravel.id
-          ? { ...updatedTravel, updated: new Date() }
-          : travel
+  const updateTravel = (id: string, name: string, startDate: Date, endDate: Date, currency: string, description?: string) => {
+    setTravels(
+      travels.map((travel) =>
+        travel.id === id ? { ...travel, name, startDate, endDate, currency, description, updated: new Date() } : travel
       )
     );
-
-    if (currentTravel?.id === updatedTravel.id) {
-      setCurrentTravel({ ...updatedTravel, updated: new Date() });
-    }
-
-    toast({
-      title: 'Travel updated',
-      description: `"${updatedTravel.name}" has been updated.`,
-    });
+    setCurrentTravel(prev => prev?.id === id ? { ...prev, name, startDate, endDate, currency, description, updated: new Date() } : prev);
+    toast.success(`Travel "${name}" updated`);
   };
 
   const deleteTravel = (id: string) => {
-    const travelToDelete = travels.find(t => t.id === id);
-    
-    setTravels((prev) => prev.filter((travel) => travel.id !== id));
-    
-    if (currentTravel?.id === id) {
-      setCurrentTravel(null);
-    }
-
-    if (travelToDelete) {
-      toast({
-        title: 'Travel deleted',
-        description: `"${travelToDelete.name}" has been deleted.`,
-      });
-    }
+    setTravels(travels.filter((travel) => travel.id !== id));
+    setCurrentTravel(null);
+    toast.success("Travel deleted");
   };
 
-  const validateParticipationPeriod = (dateRange: DateRange): boolean => {
-    if (!currentTravel) return false;
-    
-    if (isBefore(dateRange.startDate, currentTravel.startDate) || 
-        isAfter(dateRange.endDate, currentTravel.endDate)) {
-      return false;
-    }
-    
-    return true;
-  };
-
-  const addParticipant = (name: string, email: string | undefined, participationPeriods: DateRange[], initialContribution?: number) => {
-    if (!currentTravel) return;
-
-    for (const period of participationPeriods) {
-      if (!validateParticipationPeriod(period)) {
-        toast({
-          title: 'Invalid participation period',
-          description: 'Participation period must be within the travel date range.',
-          variant: 'destructive',
-        });
-        return;
-      }
+  const addParticipant = (name: string, email?: string, participationPeriods?: DateRange[], initialContribution?: number) => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
     }
 
     const newParticipant: Participant = {
       id: uuidv4(),
       name,
       email,
-      participationPeriods: participationPeriods.map(period => ({
-        id: uuidv4(),
-        startDate: period.startDate,
-        endDate: period.endDate,
-      })),
+      participationPeriods: participationPeriods || [{ startDate: currentTravel.startDate, endDate: currentTravel.endDate }],
+      created: new Date(),
     };
 
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      participants: [...currentTravel.participants, newParticipant],
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
+    setTravels(
+      travels.map((travel) =>
+        travel.id === currentTravel.id
+          ? { ...travel, participants: [...travel.participants, newParticipant] }
+          : travel
+      )
     );
+    setCurrentTravel(prev => prev?.id === currentTravel.id ? { ...prev, participants: [...prev.participants, newParticipant] } : prev);
+    toast.success(`Participant "${name}" added`);
 
     if (initialContribution && initialContribution > 0) {
-      const newContribution: AdvanceContribution = {
-        id: uuidv4(),
-        participantId: newParticipant.id,
-        amount: initialContribution,
-        date: new Date(),
-        comment: "Initial contribution",
-        created: new Date(),
-      };
-      
-      const travelWithContribution = {
-        ...updatedTravel,
-        advanceContributions: [...updatedTravel.advanceContributions, newContribution],
-        updated: new Date(),
-      };
-      
-      setCurrentTravel(travelWithContribution);
-      setTravels((prev) =>
-        prev.map((travel) => (travel.id === currentTravel.id ? travelWithContribution : travel))
-      );
+      addAdvanceContribution(newParticipant.id, initialContribution, new Date(), "Initial contribution");
     }
-
-    toast({
-      title: 'Participant added',
-      description: `${name} has been added to the travel.`,
-    });
   };
 
-  const updateParticipant = (updatedParticipant: Participant) => {
-    if (!currentTravel) return;
-
-    for (const period of updatedParticipant.participationPeriods) {
-      if (!validateParticipationPeriod(period)) {
-        toast({
-          title: 'Invalid participation period',
-          description: 'Participation period must be within the travel date range.',
-          variant: 'destructive',
-        });
-        return;
-      }
-    }
-
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      participants: currentTravel.participants.map((p) =>
-        p.id === updatedParticipant.id ? updatedParticipant : p
-      ),
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
-    );
-
-    toast({
-      title: 'Participant updated',
-      description: `${updatedParticipant.name}'s details have been updated.`,
-    });
-  };
-
-  const removeParticipant = (id: string) => {
-    if (!currentTravel) return;
-
-    const participantToRemove = currentTravel.participants.find(p => p.id === id);
-    if (!participantToRemove) return;
-
-    const isInExpenses = currentTravel.expenses.some(e => 
-      e.paidBy.some(p => p.participantId === id) || 
-      e.sharedAmong.some(p => p.participantId === id)
-    );
-    
-    const isInContributions = currentTravel.advanceContributions.some(
-      c => c.participantId === id
-    );
-
-    if (isInExpenses || isInContributions) {
-      toast({
-        title: 'Cannot remove participant',
-        description: `${participantToRemove.name} is involved in expenses or contributions and cannot be removed.`,
-        variant: 'destructive',
-      });
+  const updateParticipant = (id: string, name: string, email?: string, participationPeriods?: DateRange[]) => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
       return;
     }
 
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      participants: currentTravel.participants.filter((p) => p.id !== id),
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
+    setTravels(
+      travels.map((travel) => {
+        if (travel.id === currentTravel.id) {
+          const updatedParticipants = travel.participants.map((participant) =>
+            participant.id === id ? { ...participant, name, email, participationPeriods } : participant
+          );
+          return { ...travel, participants: updatedParticipants };
+        }
+        return travel;
+      })
     );
-
-    toast({
-      title: 'Participant removed',
-      description: `${participantToRemove.name} has been removed from the travel.`,
+    setCurrentTravel(prev => {
+      if (prev?.id === currentTravel.id) {
+        const updatedParticipants = prev.participants.map((participant) =>
+          participant.id === id ? { ...participant, name, email, participationPeriods } : participant
+        );
+        return { ...prev, participants: updatedParticipants };
+      }
+      return prev;
     });
+    toast.success(`Participant "${name}" updated`);
+  };
+
+  const deleteParticipant = (id: string) => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
+
+    setTravels(
+      travels.map((travel) => {
+        if (travel.id === currentTravel.id) {
+          const updatedParticipants = travel.participants.filter((participant) => participant.id !== id);
+          return { ...travel, participants: updatedParticipants };
+        }
+        return travel;
+      })
+    );
+    setCurrentTravel(prev => {
+      if (prev?.id === currentTravel.id) {
+        const updatedParticipants = prev.participants.filter((participant) => participant.id !== id);
+        return { ...prev, participants: updatedParticipants };
+      }
+      return prev;
+    });
+    toast.success("Participant deleted");
   };
 
   const addExpense = (
+    description: string,
     amount: number,
     date: Date,
-    type: ExpenseType,
-    customType: string | undefined,
-    paidBy: { participantId: string; amount: number }[],
-    paidFromFund: boolean,
-    sharedAmong: { participantId: string; included: boolean; weight: number }[],
-    comment?: string
+    paidById: string,
+    splitMode: "all" | "custom",
+    splitIds?: string[],
+    category?: string
   ) => {
-    if (!currentTravel) return;
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
 
     const newExpense: Expense = {
       id: uuidv4(),
+      description,
       amount,
       date,
-      type,
-      customType: type === 'Custom' ? customType : undefined,
-      paidBy,
-      paidFromFund,
-      sharedAmong,
-      comment,
+      paidById,
+      splitMode,
+      splitIds,
+      category,
       created: new Date(),
-      updated: new Date(),
     };
 
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      expenses: [...currentTravel.expenses, newExpense],
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
+    setTravels(
+      travels.map((travel) =>
+        travel.id === currentTravel.id ? { ...travel, expenses: [...travel.expenses, newExpense] } : travel
+      )
     );
-
-    toast({
-      title: 'Expense added',
-      description: `A new ${type.toLowerCase()} expense of ${amount.toFixed(2)} has been added.`,
-    });
+    setCurrentTravel(prev => prev?.id === currentTravel.id ? { ...prev, expenses: [...prev.expenses, newExpense] } : prev);
+    toast.success("Expense added");
   };
 
-  const updateExpense = (updatedExpense: Expense) => {
-    if (!currentTravel) return;
+  const updateExpense = (
+    id: string,
+    description: string,
+    amount: number,
+    date: Date,
+    paidById: string,
+    splitMode: "all" | "custom",
+    splitIds?: string[],
+    category?: string
+  ) => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
 
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      expenses: currentTravel.expenses.map((e) =>
-        e.id === updatedExpense.id ? { ...updatedExpense, updated: new Date() } : e
-      ),
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
+    setTravels(
+      travels.map((travel) => {
+        if (travel.id === currentTravel.id) {
+          const updatedExpenses = travel.expenses.map((expense) =>
+            expense.id === id
+              ? { ...expense, description, amount, date, paidById, splitMode, splitIds, category }
+              : expense
+          );
+          return { ...travel, expenses: updatedExpenses };
+        }
+        return travel;
+      })
     );
-
-    toast({
-      title: 'Expense updated',
-      description: `The ${updatedExpense.type.toLowerCase()} expense has been updated.`,
+    setCurrentTravel(prev => {
+      if (prev?.id === currentTravel.id) {
+        const updatedExpenses = prev.expenses.map((expense) =>
+          expense.id === id
+            ? { ...expense, description, amount, date, paidById, splitMode, splitIds, category }
+            : expense
+        );
+        return { ...prev, expenses: updatedExpenses };
+      }
+      return prev;
     });
+    toast.success("Expense updated");
   };
 
   const deleteExpense = (id: string) => {
-    if (!currentTravel) return;
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
 
-    const expenseToDelete = currentTravel.expenses.find(e => e.id === id);
-    if (!expenseToDelete) return;
-
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      expenses: currentTravel.expenses.filter((e) => e.id !== id),
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
+    setTravels(
+      travels.map((travel) => {
+        if (travel.id === currentTravel.id) {
+          const updatedExpenses = travel.expenses.filter((expense) => expense.id !== id);
+          return { ...travel, expenses: updatedExpenses };
+        }
+        return travel;
+      })
     );
-
-    toast({
-      title: 'Expense deleted',
-      description: `The ${expenseToDelete.type.toLowerCase()} expense of ${expenseToDelete.amount.toFixed(2)} has been deleted.`,
+    setCurrentTravel(prev => {
+      if (prev?.id === currentTravel.id) {
+        const updatedExpenses = prev.expenses.filter((expense) => expense.id !== id);
+        return { ...prev, expenses: updatedExpenses };
+      }
+      return prev;
     });
+    toast.success("Expense deleted");
   };
 
-  const addAdvanceContribution = (
-    participantId: string,
-    amount: number,
-    date: Date,
-    comment?: string
-  ) => {
-    if (!currentTravel) return;
-
-    const participant = currentTravel.participants.find(p => p.id === participantId);
-    if (!participant) return;
+  const addAdvanceContribution = (participantId: string, amount: number, date: Date, comment?: string) => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
 
     const newContribution: AdvanceContribution = {
       id: uuidv4(),
@@ -426,354 +383,282 @@ export const TravelProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       created: new Date(),
     };
 
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      advanceContributions: [...currentTravel.advanceContributions, newContribution],
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
+    setTravels(
+      travels.map((travel) =>
+        travel.id === currentTravel.id
+          ? { ...travel, advanceContributions: [...travel.advanceContributions, newContribution] }
+          : travel
+      )
     );
-
-    toast({
-      title: 'Contribution added',
-      description: `${participant.name} contributed ${amount.toFixed(2)} to the travel fund.`,
-    });
+    setCurrentTravel(prev => prev?.id === currentTravel.id ? { ...prev, advanceContributions: [...prev.advanceContributions, newContribution] } : prev);
+    toast.success("Contribution added");
   };
 
-  const updateAdvanceContribution = (updatedContribution: AdvanceContribution) => {
-    if (!currentTravel) return;
+  const updateAdvanceContribution = (id: string, participantId: string, amount: number, date: Date, comment?: string) => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
 
-    const participant = currentTravel.participants.find(p => p.id === updatedContribution.participantId);
-    if (!participant) return;
-
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      advanceContributions: currentTravel.advanceContributions.map((c) =>
-        c.id === updatedContribution.id ? updatedContribution : c
-      ),
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
+    setTravels(
+      travels.map((travel) => {
+        if (travel.id === currentTravel.id) {
+          const updatedContributions = travel.advanceContributions.map((contribution) =>
+            contribution.id === id ? { ...contribution, participantId, amount, date, comment } : contribution
+          );
+          return { ...travel, advanceContributions: updatedContributions };
+        }
+        return travel;
+      })
     );
-
-    toast({
-      title: 'Contribution updated',
-      description: `${participant.name}'s contribution has been updated.`,
+    setCurrentTravel(prev => {
+      if (prev?.id === currentTravel.id) {
+        const updatedContributions = prev.advanceContributions.map((contribution) =>
+          contribution.id === id ? { ...contribution, participantId, amount, date, comment } : contribution
+        );
+        return { ...prev, advanceContributions: updatedContributions };
+      }
+      return prev;
     });
+    toast.success("Contribution updated");
   };
 
   const deleteAdvanceContribution = (id: string) => {
-    if (!currentTravel) return;
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
 
-    const contributionToDelete = currentTravel.advanceContributions.find(c => c.id === id);
-    if (!contributionToDelete) return;
-
-    const participant = currentTravel.participants.find(p => p.id === contributionToDelete.participantId);
-    if (!participant) return;
-
-    const updatedTravel: Travel = {
-      ...currentTravel,
-      advanceContributions: currentTravel.advanceContributions.filter((c) => c.id !== id),
-      updated: new Date(),
-    };
-
-    setCurrentTravel(updatedTravel);
-    setTravels((prev) =>
-      prev.map((travel) => (travel.id === currentTravel.id ? updatedTravel : travel))
-    );
-
-    toast({
-      title: 'Contribution deleted',
-      description: `${participant.name}'s contribution of ${contributionToDelete.amount.toFixed(2)} has been deleted.`,
-    });
-  };
-
-  const isParticipantPresentOnDate = (participantId: string, date: Date) => {
-    if (!currentTravel) return false;
-
-    const participant = currentTravel.participants.find((p) => p.id === participantId);
-    if (!participant) return false;
-
-    return participant.participationPeriods.some((period) =>
-      isWithinInterval(date, {
-        start: period.startDate,
-        end: period.endDate,
+    setTravels(
+      travels.map((travel) => {
+        if (travel.id === currentTravel.id) {
+          const updatedContributions = travel.advanceContributions.filter((contribution) => contribution.id !== id);
+          return { ...travel, advanceContributions: updatedContributions };
+        }
+        return travel;
       })
     );
+    setCurrentTravel(prev => {
+      if (prev?.id === currentTravel.id) {
+        const updatedContributions = prev.advanceContributions.filter((contribution) => contribution.id !== id);
+        return { ...prev, advanceContributions: updatedContributions };
+      }
+      return prev;
+    });
+    toast.success("Contribution deleted");
   };
 
-  const calculateSettlements = (): Settlement[] => {
-    if (!currentTravel) return [];
+  const calculateSettlements = () => {
+    if (!currentTravel) {
+      return [];
+    }
 
-    const settlements: Settlement[] = currentTravel.participants.map((participant) => {
-      const advancePaid = currentTravel.advanceContributions
-        .filter((c) => c.participantId === participant.id)
-        .reduce((sum, c) => sum + c.amount, 0);
+    const { participants, expenses, advanceContributions } = currentTravel;
 
-      const personallyPaid = currentTravel.expenses
-        .filter((e) => !e.paidFromFund)
-        .flatMap((e) => e.paidBy)
-        .filter((p) => p.participantId === participant.id)
-        .reduce((sum, p) => sum + p.amount, 0);
+    // Calculate each participant's total expenses
+    const participantExpenses: { [participantId: string]: number } = {};
+    participants.forEach((p) => (participantExpenses[p.id] = 0));
 
-      let expenseShare = 0;
-      currentTravel.expenses.forEach((expense) => {
-        const participantIncluded = expense.sharedAmong.find(
-          (p) => p.participantId === participant.id
-        );
+    expenses.forEach((expense) => {
+      const numberOfParticipants = expense.splitMode === "all" ? participants.length : expense.splitIds?.length || 0;
+      const amountPerParticipant = expense.amount / numberOfParticipants;
 
-        if (participantIncluded && participantIncluded.included) {
-          const totalWeight = expense.sharedAmong
-            .filter((p) => p.included)
-            .reduce((sum, p) => sum + p.weight, 0);
+      if (expense.splitMode === "all") {
+        participants.forEach((p) => {
+          participantExpenses[p.id] = (participantExpenses[p.id] || 0) + amountPerParticipant;
+        });
+      } else if (expense.splitIds) {
+        expense.splitIds.forEach((participantId) => {
+          participantExpenses[participantId] = (participantExpenses[participantId] || 0) + amountPerParticipant;
+        });
+      }
+      participantExpenses[expense.paidById] -= expense.amount;
+    });
 
-          if (totalWeight > 0) {
-            expenseShare += (expense.amount * participantIncluded.weight) / totalWeight;
-          }
-        }
+    // Adjust for advance contributions
+    advanceContributions.forEach((contribution) => {
+      participantExpenses[contribution.participantId] -= contribution.amount;
+    });
+
+    // Create settlements
+    const settlements: Settlement[] = [];
+    const sortedParticipants = Object.entries(participantExpenses).sort(([, a], [, b]) => a - b);
+
+    let i = 0;
+    let j = sortedParticipants.length - 1;
+
+    while (i < j) {
+      let debtorId = sortedParticipants[i][0];
+      let creditorId = sortedParticipants[j][0];
+      let amountOwed = sortedParticipants[i][1];
+      let amountReceivable = sortedParticipants[j][1];
+
+      if (amountOwed === 0) {
+        i++;
+        continue;
+      }
+      if (amountReceivable === 0) {
+        j--;
+        continue;
+      }
+
+      let settlementAmount = Math.min(Math.abs(amountOwed), amountReceivable);
+
+      settlements.push({
+        fromParticipantId: debtorId,
+        toParticipantId: creditorId,
+        amount: settlementAmount,
+        status: 'pending',
       });
 
-      const totalPaid = advancePaid + personallyPaid;
-      const dueAmount = Math.max(0, expenseShare - totalPaid);
-      const refundAmount = Math.max(0, totalPaid - expenseShare);
-      const donated = !!refundDonations[participant.id];
+      sortedParticipants[i][1] += settlementAmount;
+      sortedParticipants[j][1] -= settlementAmount;
 
-      return {
-        participantId: participant.id,
-        name: participant.name,
-        advancePaid,
-        personallyPaid,
-        expenseShare,
-        dueAmount,
-        refundAmount,
-        donated,
-      };
-    });
+      if (sortedParticipants[i][1] === 0) {
+        i++;
+      }
+      if (sortedParticipants[j][1] === 0) {
+        j--;
+      }
+    }
 
     return settlements;
   };
 
-  const getTravelFundBalance = (): number => {
-    if (!currentTravel) return 0;
-
-    const totalContributions = currentTravel.advanceContributions.reduce(
-      (sum, c) => sum + c.amount,
-      0
-    );
-
-    const totalFundExpenses = currentTravel.expenses
-      .filter((e) => e.paidFromFund)
-      .reduce((sum, e) => sum + e.amount, 0);
-
-    return totalContributions - totalFundExpenses;
-  };
-
-  const getTotalExpenses = (): number => {
-    if (!currentTravel) return 0;
-    return currentTravel.expenses.reduce((sum, e) => sum + e.amount, 0);
-  };
-
-  const markRefundAsDonated = (participantId: string, donated: boolean) => {
-    setRefundDonations((prev) => ({
-      ...prev,
-      [participantId]: donated,
-    }));
-
-    const participant = currentTravel?.participants.find(p => p.id === participantId);
-    if (participant) {
-      toast({
-        title: donated ? 'Refund donated' : 'Donation canceled',
-        description: donated 
-          ? `${participant.name}'s refund has been marked as donated.` 
-          : `${participant.name}'s refund is no longer marked as donated.`,
-      });
-    }
-  };
-
-  const exportToExcel = async () => {
+  const updateSettlementStatus = (fromId: string, toId: string, status: string) => {
     if (!currentTravel) {
-      toast({
-        title: 'No travel selected',
-        description: 'Please select a travel first to export data.',
-        variant: 'destructive',
-      });
+      toast.error("No travel selected");
+      return;
+    }
+
+    setTravels(
+      travels.map((travel) => {
+        if (travel.id === currentTravel.id) {
+          return {
+            ...travel,
+            settlements: travel.settlements?.map((settlement) => {
+              if (settlement.fromParticipantId === fromId && settlement.toParticipantId === toId) {
+                return { ...settlement, status: status };
+              }
+              return settlement;
+            }),
+          };
+        }
+        return travel;
+      })
+    );
+    setCurrentTravel(prev => {
+      if (prev?.id === currentTravel.id) {
+        return {
+          ...prev,
+          settlements: prev.settlements?.map((settlement) => {
+            if (settlement.fromParticipantId === fromId && settlement.toParticipantId === toId) {
+              return { ...settlement, status: status };
+            }
+            return settlement;
+          }),
+        };
+      }
+      return prev;
+    });
+    toast.success("Settlement status updated");
+  };
+
+  const handleExportToExcel = () => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
       return;
     }
 
     try {
-      const XLSX = await import('xlsx').then(module => module.default);
-      
       const settlements = calculateSettlements();
       
-      const wsData = [
-        ['Travel Expense Summary'],
-        [`Travel Name: ${currentTravel.name}`],
-        [`Travel Period: ${format(currentTravel.startDate, 'MMM d, yyyy')} - ${format(currentTravel.endDate, 'MMM d, yyyy')}`],
-        [`Total Expenses: ${getTotalExpenses().toFixed(2)}`],
-        [`Travel Fund Balance: ${getTravelFundBalance().toFixed(2)}`],
-        [],
-        ['Participant', 'Advance Paid', 'Personally Paid', 'Expense Share', 'Due Amount', 'Refund Amount', 'Donated'],
-        ...settlements.map(s => [
-          s.name,
-          s.advancePaid.toFixed(2),
-          s.personallyPaid.toFixed(2),
-          s.expenseShare.toFixed(2),
-          s.dueAmount.toFixed(2),
-          s.refundAmount.toFixed(2),
-          s.donated ? 'Yes' : 'No'
-        ])
-      ];
-      
-      const ws = XLSX.utils.aoa_to_sheet(wsData);
-      
-      const colWidths = [{ wch: 20 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 15 }, { wch: 10 }];
-      ws['!cols'] = colWidths;
-      
-      const wb = XLSX.utils.book_new();
-      XLSX.utils.book_append_sheet(wb, ws, 'Summary');
-      
-      const expensesData = [
-        ['Expenses'],
-        [],
-        ['Date', 'Type', 'Amount', 'Paid By', 'Paid From Fund', 'Comment'],
-        ...currentTravel.expenses.map(e => {
-          const paidBy = e.paidBy.map(p => {
-            const participant = currentTravel.participants.find(part => part.id === p.participantId);
-            return `${participant?.name || 'Unknown'}: ${p.amount.toFixed(2)}`;
-          }).join(', ');
-          
-          return [
-            format(e.date, 'MMM d, yyyy'),
-            e.type + (e.customType ? `: ${e.customType}` : ''),
-            e.amount.toFixed(2),
-            paidBy,
-            e.paidFromFund ? 'Yes' : 'No',
-            e.comment || ''
-          ];
-        })
-      ];
-      
-      const expensesWs = XLSX.utils.aoa_to_sheet(expensesData);
-      XLSX.utils.book_append_sheet(wb, expensesWs, 'Expenses');
-      
-      const contributionsData = [
-        ['Advance Contributions'],
-        [],
-        ['Date', 'Participant', 'Amount', 'Comment'],
-        ...currentTravel.advanceContributions.map(c => {
-          const participant = currentTravel.participants.find(p => p.id === c.participantId);
-          return [
-            format(c.date, 'MMM d, yyyy'),
-            participant?.name || 'Unknown',
-            c.amount.toFixed(2),
-            c.comment || ''
-          ];
-        })
-      ];
-      
-      const contributionsWs = XLSX.utils.aoa_to_sheet(contributionsData);
-      XLSX.utils.book_append_sheet(wb, contributionsWs, 'Contributions');
-      
-      const participantsData = [
-        ['Participants'],
-        [],
-        ['Name', 'Email', 'Participation Periods'],
-        ...currentTravel.participants.map(p => {
-          const periods = p.participationPeriods.map(period => 
-            `${format(period.startDate, 'MMM d, yyyy')} - ${format(period.endDate, 'MMM d, yyyy')}`
-          ).join(', ');
-          
-          return [
-            p.name,
-            p.email || '',
-            periods
-          ];
-        })
-      ];
-      
-      const participantsWs = XLSX.utils.aoa_to_sheet(participantsData);
-      XLSX.utils.book_append_sheet(wb, participantsWs, 'Participants');
-      
-      const filename = `${currentTravel.name.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '')}.xlsx`;
-      
-      XLSX.writeFile(wb, filename);
-      
-      toast({
-        title: 'Export successful',
-        description: `Travel data has been exported to ${filename}.`,
+      exportToExcel({
+        travel: currentTravel,
+        participants: currentTravel.participants,
+        expenses: currentTravel.expenses,
+        settlements,
+        contributions: currentTravel.advanceContributions
       });
+      
+      toast.success("Export successful");
     } catch (error) {
-      console.error('Export failed:', error);
-      toast({
-        title: 'Export failed',
-        description: 'Failed to export travel data to Excel.',
-        variant: 'destructive',
-      });
+      console.error("Export error:", error);
+      toast.error("Export failed");
     }
   };
 
-  const getParticipantById = (id: string): Participant | undefined => {
-    return currentTravel?.participants.find(p => p.id === id);
-  };
+  const handleExportToJSON = () => {
+    if (!currentTravel) {
+      toast.error("No travel selected");
+      return;
+    }
 
-  const getExpenseTypeColor = (type: ExpenseType): string => {
-    switch (type) {
-      case 'Meal':
-        return 'bg-travel-meal';
-      case 'Fuel':
-        return 'bg-travel-fuel';
-      case 'Hotel':
-        return 'bg-travel-hotel';
-      case 'Custom':
-      default:
-        return 'bg-travel-accent';
+    try {
+      exportTravelToJSON(currentTravel);
+      toast.success("JSON export successful");
+    } catch (error) {
+      console.error("JSON export error:", error);
+      toast.error("JSON export failed");
     }
   };
 
-  const contextValue: TravelContextType = {
-    travels,
-    currentTravel,
-    setCurrentTravel,
-    createTravel,
-    updateTravel,
-    deleteTravel,
-    addParticipant,
-    updateParticipant,
-    removeParticipant,
-    addExpense,
-    updateExpense,
-    deleteExpense,
-    addAdvanceContribution,
-    updateAdvanceContribution,
-    deleteAdvanceContribution,
-    calculateSettlements,
-    getTravelFundBalance,
-    getTotalExpenses,
-    isParticipantPresentOnDate,
-    markRefundAsDonated,
-    exportToExcel,
-    getParticipantById,
-    getExpenseTypeColor,
-    validateParticipationPeriod,
+  const handleImportFromJSON = async (file: File) => {
+    try {
+      const importedTravel = await importTravelFromJSON(file);
+      
+      // Check if travel with same ID already exists
+      const existingTravelIndex = travels.findIndex(t => t.id === importedTravel.id);
+      
+      if (existingTravelIndex >= 0) {
+        // Update existing travel
+        setTravels(prev => prev.map(t => t.id === importedTravel.id ? importedTravel : t));
+        setCurrentTravel(importedTravel);
+        toast.success(`Travel "${importedTravel.name}" updated from JSON`);
+      } else {
+        // Add as new travel
+        setTravels(prev => [...prev, importedTravel]);
+        setCurrentTravel(importedTravel);
+        toast.success(`Travel "${importedTravel.name}" imported from JSON`);
+      }
+      
+      return true;
+    } catch (error) {
+      console.error("JSON import error:", error);
+      toast.error("Failed to import travel data");
+      return false;
+    }
   };
 
   return (
-    <TravelContext.Provider value={contextValue}>
+    <TravelContext.Provider
+      value={{
+        travels,
+        currentTravel,
+        setTravels,
+        setCurrentTravel,
+        createTravel,
+        updateTravel,
+        deleteTravel,
+        addParticipant,
+        updateParticipant,
+        deleteParticipant,
+        addExpense,
+        updateExpense,
+        deleteExpense,
+        addAdvanceContribution,
+        updateAdvanceContribution,
+        deleteAdvanceContribution,
+        calculateSettlements,
+        updateSettlementStatus,
+        exportToExcel: handleExportToExcel,
+        exportToJSON: handleExportToJSON,
+        importFromJSON: handleImportFromJSON,
+      }}
+    >
       {children}
     </TravelContext.Provider>
   );
 };
 
-export const useTravel = (): TravelContextType => {
-  const context = useContext(TravelContext);
-  if (context === undefined) {
-    throw new Error('useTravel must be used within a TravelProvider');
-  }
-  return context;
-};
+export const useTravel = () => useContext(TravelContext);

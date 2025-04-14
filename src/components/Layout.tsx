@@ -1,6 +1,6 @@
 
 import React from 'react';
-import Header from './Header';
+import LeftSideMenu from './LeftSideMenu';
 import ActionBar from './ActionBar';
 import { useTravel } from '@/context/TravelContext';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -14,13 +14,14 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const isMobile = useIsMobile();
   
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header />
-      <main className={`flex-1 container mx-auto py-6 px-4 ${isMobile && currentTravel ? 'pb-20' : ''}`}>
-        {children}
-      </main>
-      {currentTravel && <ActionBar />}
-    </div>
+    <LeftSideMenu>
+      <div className="min-h-screen flex flex-col">
+        <main className={`flex-1 container mx-auto py-6 px-4 ${isMobile && currentTravel ? 'pb-20' : ''}`}>
+          {children}
+        </main>
+        {currentTravel && isMobile && <ActionBar />}
+      </div>
+    </LeftSideMenu>
   );
 };
 

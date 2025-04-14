@@ -1,4 +1,5 @@
 
+import { useEffect, useState } from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -13,6 +14,7 @@ import Expenses from "./pages/Expenses";
 import TravelFund from "./pages/TravelFund";
 import Summary from "./pages/Summary";
 import { TravelProvider } from "./context/TravelContext";
+import { registerSW } from './pwa/registerSW';
 
 // Import Ant Design styles
 import 'antd/dist/reset.css';
@@ -27,29 +29,55 @@ const theme = {
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <ConfigProvider theme={theme}>
-      <TooltipProvider>
-        <TravelProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/new-travel" element={<NewTravel />} />
-              <Route path="/participants" element={<Participants />} />
-              <Route path="/expenses" element={<Expenses />} />
-              <Route path="/fund" element={<TravelFund />} />
-              <Route path="/summary" element={<Summary />} />
-              {/* Catch-all route */}
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </BrowserRouter>
-        </TravelProvider>
-      </TooltipProvider>
-    </ConfigProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  const [isUpdateAvailable, setIsUpdateAvailable] = useState(false);
+  
+  // Register service worker for PWA
+  useEffect(() => {
+    registerSW({
+      onUpdate: () => {
+        setIsUpdateAvailable(true);
+      }
+    });
+  }, []);
+  
+  // Handle update notification
+  useEffect(() => {
+    if (isUpdateAvailable) {
+      // Show update notification
+      const confirmUpdate = window.confirm('A new version is available. Update now?');
+      
+      if (confirmUpdate) {
+        // Reload the page to apply the update
+        window.location.reload();
+      }
+    }
+  }, [isUpdateAvailable]);
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <ConfigProvider theme={theme}>
+        <TooltipProvider>
+          <TravelProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/" element={<Index />} />
+                <Route path="/new-travel" element={<NewTravel />} />
+                <Route path="/participants" element={<Participants />} />
+                <Route path="/expenses" element={<Expenses />} />
+                <Route path="/fund" element={<TravelFund />} />
+                <Route path="/summary" element={<Summary />} />
+                {/* Catch-all route */}
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </BrowserRouter>
+          </TravelProvider>
+        </TooltipProvider>
+      </ConfigProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
