@@ -179,7 +179,7 @@ const Participants = () => {
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <Title level={3}>Participants</Title>
+          <Title level={3}>Participants ({currentTravel.participants.length})</Title>
           <Button
             type="primary" 
             icon={<PlusOutlined />}
@@ -271,6 +271,7 @@ const Participants = () => {
         onCancel={() => setIsAddModalOpen(false)}
         footer={null}
         width={600}
+        centered // Center vertically on mobile
       >
         <Form 
           form={form}
@@ -341,6 +342,7 @@ const Participants = () => {
                     className="w-full" 
                     format="YYYY-MM-DD"
                     disabledDate={disabledDate}
+                    popupClassName="responsive-datepicker-popup" // Add this to target it with CSS
                   />
                 </Form.Item>
                 
@@ -376,6 +378,7 @@ const Participants = () => {
         onCancel={() => setIsEditModalOpen(false)}
         footer={null}
         width={600}
+        centered // Center vertically on mobile
       >
         <Form 
           form={editForm}
@@ -432,6 +435,7 @@ const Participants = () => {
                     className="w-full" 
                     format="YYYY-MM-DD"
                     disabledDate={disabledDate}
+                    popupClassName="responsive-datepicker-popup" // Add this to target it with CSS
                   />
                 </Form.Item>
                 

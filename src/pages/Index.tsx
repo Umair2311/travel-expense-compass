@@ -107,7 +107,7 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {currentTravel.participants.length}
+                  {currentTravel?.participants?.length || 0}
                 </div>
               </CardContent>
               <CardFooter>
@@ -128,10 +128,10 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  ${currentTravel.expenses.reduce((sum, e) => sum + e.amount, 0).toFixed(2)}
+                  ${currentTravel?.expenses?.reduce((sum, e) => sum + e.amount, 0).toFixed(2) || "0.00"}
                 </div>
                 <div className="text-muted-foreground text-sm">
-                  {currentTravel.expenses.length} expense entries
+                  {currentTravel?.expenses?.length || 0} expense entries
                 </div>
               </CardContent>
               <CardFooter>
@@ -152,10 +152,10 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  ${currentTravel.advanceContributions.reduce((sum, c) => sum + c.amount, 0).toFixed(2)}
+                  ${currentTravel?.advanceContributions?.reduce((sum, c) => sum + c.amount, 0).toFixed(2) || "0.00"}
                 </div>
                 <div className="text-muted-foreground text-sm">
-                  {currentTravel.advanceContributions.length} contributions
+                  {currentTravel?.advanceContributions?.length || 0} contributions
                 </div>
               </CardContent>
               <CardFooter>
@@ -177,7 +177,7 @@ const Index = () => {
                 <CardTitle>Recent Expenses</CardTitle>
               </CardHeader>
               <CardContent>
-                {currentTravel.expenses.length === 0 ? (
+                {!currentTravel?.expenses || currentTravel.expenses.length === 0 ? (
                   <div className="text-center py-6 text-muted-foreground">
                     No expenses recorded yet
                   </div>
@@ -218,7 +218,7 @@ const Index = () => {
                 <CardTitle>Recent Contributions</CardTitle>
               </CardHeader>
               <CardContent>
-                {currentTravel.advanceContributions.length === 0 ? (
+                {!currentTravel?.advanceContributions || currentTravel.advanceContributions.length === 0 ? (
                   <div className="text-center py-6 text-muted-foreground">
                     No contributions recorded yet
                   </div>
