@@ -22,6 +22,14 @@ const Participants = () => {
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
   const [participationPeriods, setParticipationPeriods] = useState<ParticipationPeriod[]>([]);
   
+  // Log for debugging
+  useEffect(() => {
+    console.log("Current Travel in Participants:", currentTravel);
+    if (currentTravel) {
+      console.log("Participants count:", currentTravel.participants.length);
+    }
+  }, [currentTravel]);
+  
   // Redirect if no current travel
   useEffect(() => {
     if (!currentTravel) {

@@ -1,4 +1,3 @@
-
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,12 +16,17 @@ const Index = () => {
     if (travels.length === 0) {
       navigate('/new-travel');
     }
-  }, [travels, navigate]);
+    
+    // Log for debugging
+    console.log("Current Travel in Index:", currentTravel);
+    console.log("Travels in Index:", travels);
+  }, [travels, navigate, currentTravel]);
   
   // Handle travel selection
   const handleTravelSelect = (travelId: string) => {
     const travel = travels.find(t => t.id === travelId);
     if (travel) {
+      console.log("Setting current travel to:", travel);
       setCurrentTravel(travel);
     }
   };
@@ -107,7 +111,7 @@ const Index = () => {
               </CardHeader>
               <CardContent>
                 <div className="text-3xl font-bold">
-                  {currentTravel?.participants?.length || 0}
+                  {currentTravel.participants ? currentTravel.participants.length : 0}
                 </div>
               </CardContent>
               <CardFooter>

@@ -38,35 +38,7 @@
     --travel-primary: 255 81% 75%;
   }
  
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
- 
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
- 
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
- 
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
- 
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
- 
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
- 
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
- 
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
- 
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-  }
+  /* ... keep existing code (dark theme variables) */
 }
  
 @layer base {
@@ -83,22 +55,34 @@
   background: linear-gradient(to right, hsl(var(--travel-primary)), hsl(var(--travel-primary)/0.8));
 }
 
-/* Responsive datepicker styles */
+/* Responsive datepicker styles - improved for mobile */
 @media (max-width: 640px) {
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-panel-container {
-    flex-direction: column;
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 280px !important;
   }
   
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-panels {
-    flex-direction: column;
+    flex-direction: column !important;
+    width: 100% !important;
   }
   
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-panel {
-    width: 100%;
+    width: 100% !important;
+  }
+  
+  .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-content th,
+  .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-content td {
+    padding: 2px !important;
   }
 }
 
 /* Make pointer events work properly on calendars in modals/popovers */
+.rdp {
+  pointer-events: auto !important;
+}
+
 .rdp-months {
   pointer-events: auto !important;
 }
@@ -112,5 +96,18 @@
 }
 
 .rdp-button {
+  pointer-events: auto !important;
+}
+
+/* Make Ant Design popups responsive */
+.ant-picker-dropdown {
+  pointer-events: auto !important;
+}
+
+.ant-popover-inner {
+  pointer-events: auto !important;
+}
+
+.ant-modal-content {
   pointer-events: auto !important;
 }

@@ -1,4 +1,3 @@
-
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
@@ -70,7 +69,6 @@ export const TravelProvider: React.FC<{
     }
   }, [travels]);
 
-  // Check if a participant is present on a specific date
   const isParticipantPresentOnDate = (participantId: string, date: Date): boolean => {
     if (!currentTravel) return false;
     
@@ -82,7 +80,6 @@ export const TravelProvider: React.FC<{
       const periodEnd = new Date(period.endDate);
       const checkDate = new Date(date);
       
-      // Set times to beginning of day for comparison
       periodStart.setHours(0, 0, 0, 0);
       periodEnd.setHours(0, 0, 0, 0);
       checkDate.setHours(0, 0, 0, 0);
@@ -91,7 +88,6 @@ export const TravelProvider: React.FC<{
     });
   };
 
-  // Validate if a participation period is within travel dates
   const validateParticipationPeriod = (period: { startDate: Date, endDate: Date }): boolean => {
     if (!currentTravel) return false;
     
@@ -100,7 +96,6 @@ export const TravelProvider: React.FC<{
     const periodStart = new Date(period.startDate);
     const periodEnd = new Date(period.endDate);
     
-    // Set times to beginning of day for comparison
     travelStart.setHours(0, 0, 0, 0);
     travelEnd.setHours(0, 0, 0, 0);
     periodStart.setHours(0, 0, 0, 0);
@@ -109,7 +104,6 @@ export const TravelProvider: React.FC<{
     return periodStart >= travelStart && periodEnd <= travelEnd;
   };
 
-  // Calculate total expenses
   const getTotalExpenses = (): number => {
     if (!currentTravel) return 0;
     
@@ -118,17 +112,14 @@ export const TravelProvider: React.FC<{
     }, 0);
   };
 
-  // Get travel fund balance
   const getTravelFundBalance = (): number => {
     if (!currentTravel) return 0;
     
-    // Get total contributions
     const totalContributions = currentTravel.advanceContributions.reduce(
       (sum, contribution) => sum + contribution.amount, 
       0
     );
     
-    // Get expenses paid from fund
     const fundExpenses = currentTravel.expenses
       .filter(expense => expense.paidFromFund)
       .reduce((sum, expense) => sum + expense.amount, 0);
@@ -136,7 +127,6 @@ export const TravelProvider: React.FC<{
     return totalContributions - fundExpenses;
   };
 
-  // Mark refund as donated
   const markRefundAsDonated = (participantId: string, donated: boolean): void => {
     if (!currentTravel) return;
     
@@ -144,9 +134,6 @@ export const TravelProvider: React.FC<{
     const settlement = settlements.find(s => s.participantId === participantId);
     
     if (settlement) {
-      // Update the settlement status
-      // This is just a placeholder as settlements aren't stored
-      // We should update the UI to reflect this change
       toast.success(`${donated ? 'Marked' : 'Unmarked'} as donated`);
     }
   };
@@ -171,12 +158,16 @@ export const TravelProvider: React.FC<{
   };
 
   const updateTravel = (id: string, name: string, startDate: Date, endDate: Date, currency: string, description?: string) => {
-    setTravels(
-      travels.map((travel) =>
-        travel.id === id ? { ...travel, name, startDate, endDate, currency, description, updated: new Date() } : travel
-      )
+    const updatedTravels = travels.map((travel) =>
+      travel.id === id ? { ...travel, name, startDate, endDate, currency, description, updated: new Date() } : travel
     );
-    setCurrentTravel(prev => prev?.id === id ? { ...prev, name, startDate, endDate, currency, description, updated: new Date() } : prev);
+    
+    setTravels(updatedTravels);
+    
+    if (currentTravel?.id === id) {
+      setCurrentTravel({ ...currentTravel, name, startDate, endDate, currency, description, updated: new Date() });
+    }
+    
     toast.success(`Travel "${name}" updated`);
   };
 
@@ -207,23 +198,24 @@ export const TravelProvider: React.FC<{
 
     const updatedParticipants = [...currentTravel.participants, newParticipant];
     
-    setTravels(
-      travels.map((travel) =>
-        travel.id === currentTravel.id
-          ? { ...travel, participants: updatedParticipants }
-          : travel
-      )
+    const updatedTravel = {
+      ...currentTravel,
+      participants: updatedParticipants
+    };
+    
+    const updatedTravels = travels.map(travel =>
+      travel.id === currentTravel.id ? updatedTravel : travel
     );
     
-    setCurrentTravel(prev => {
-      if (!prev) return null;
-      return { ...prev, participants: updatedParticipants };
-    });
+    setTravels(updatedTravels);
+    setCurrentTravel(updatedTravel);
     
     toast.success(`Participant "${name}" added`);
 
     if (initialContribution && initialContribution > 0) {
-      addAdvanceContribution(newParticipant.id, initialContribution, new Date(), "Initial contribution");
+      setTimeout(() => {
+        addAdvanceContribution(newParticipant.id, initialContribution, new Date(), "Initial contribution");
+      }, 0);
     }
   };
 
@@ -233,25 +225,21 @@ export const TravelProvider: React.FC<{
       return;
     }
 
-    setTravels(
-      travels.map((travel) => {
-        if (travel.id === currentTravel.id) {
-          const updatedParticipants = travel.participants.map((participant) =>
-            participant.id === updatedParticipant.id ? updatedParticipant : participant
-          );
-          return { ...travel, participants: updatedParticipants };
-        }
-        return travel;
-      })
+    const updatedParticipants = currentTravel.participants.map(participant =>
+      participant.id === updatedParticipant.id ? updatedParticipant : participant
     );
     
-    setCurrentTravel(prev => {
-      if (!prev) return null;
-      const updatedParticipants = prev.participants.map((participant) =>
-        participant.id === updatedParticipant.id ? updatedParticipant : participant
-      );
-      return { ...prev, participants: updatedParticipants };
-    });
+    const updatedTravel = {
+      ...currentTravel,
+      participants: updatedParticipants
+    };
+    
+    const updatedTravels = travels.map(travel =>
+      travel.id === currentTravel.id ? updatedTravel : travel
+    );
+    
+    setTravels(updatedTravels);
+    setCurrentTravel(updatedTravel);
     
     toast.success(`Participant "${updatedParticipant.name}" updated`);
   };
@@ -262,21 +250,19 @@ export const TravelProvider: React.FC<{
       return;
     }
 
-    setTravels(
-      travels.map((travel) => {
-        if (travel.id === currentTravel.id) {
-          const updatedParticipants = travel.participants.filter((participant) => participant.id !== id);
-          return { ...travel, participants: updatedParticipants };
-        }
-        return travel;
-      })
+    const updatedParticipants = currentTravel.participants.filter((participant) => participant.id !== id);
+    
+    const updatedTravel = {
+      ...currentTravel,
+      participants: updatedParticipants
+    };
+    
+    const updatedTravels = travels.map(travel =>
+      travel.id === currentTravel.id ? updatedTravel : travel
     );
     
-    setCurrentTravel(prev => {
-      if (!prev) return null;
-      const updatedParticipants = prev.participants.filter((participant) => participant.id !== id);
-      return { ...prev, participants: updatedParticipants };
-    });
+    setTravels(updatedTravels);
+    setCurrentTravel(updatedTravel);
     
     toast.success("Participant deleted");
   };
@@ -472,19 +458,16 @@ export const TravelProvider: React.FC<{
 
     const { participants, expenses, advanceContributions } = currentTravel;
 
-    // Calculate each participant's total expenses
     const participantExpenses: { [participantId: string]: number } = {};
     participants.forEach((p) => (participantExpenses[p.id] = 0));
 
     expenses.forEach((expense) => {
-      // For paid expenses
       if (!expense.paidFromFund) {
         expense.paidBy.forEach(payer => {
           participantExpenses[payer.participantId] -= payer.amount;
         });
       }
       
-      // For shared expenses
       const includedParticipants = expense.sharedAmong.filter(p => p.included);
       const totalWeight = includedParticipants.reduce((sum, p) => sum + p.weight, 0);
       
@@ -496,12 +479,10 @@ export const TravelProvider: React.FC<{
       }
     });
 
-    // Adjust for advance contributions
     advanceContributions.forEach((contribution) => {
       participantExpenses[contribution.participantId] -= contribution.amount;
     });
 
-    // Create settlements
     const settlements: Settlement[] = [];
     const sortedParticipants = Object.entries(participantExpenses).sort(([, a], [, b]) => a - b);
 
@@ -551,7 +532,6 @@ export const TravelProvider: React.FC<{
   };
 
   const updateSettlementStatus = (fromId: string, toId: string, status: string) => {
-    // This is a placeholder since the Settlement model doesn't include settlement status
     toast.success("Settlement status updated");
   };
 
@@ -598,16 +578,13 @@ export const TravelProvider: React.FC<{
     try {
       const importedTravel = await importTravelFromJSON(file);
       
-      // Check if travel with same ID already exists
       const existingTravelIndex = travels.findIndex(t => t.id === importedTravel.id);
       
       if (existingTravelIndex >= 0) {
-        // Update existing travel
         setTravels(prev => prev.map(t => t.id === importedTravel.id ? importedTravel : t));
         setCurrentTravel(importedTravel);
         toast.success(`Travel "${importedTravel.name}" updated from JSON`);
       } else {
-        // Add as new travel
         setTravels(prev => [...prev, importedTravel]);
         setCurrentTravel(importedTravel);
         toast.success(`Travel "${importedTravel.name}" imported from JSON`);
