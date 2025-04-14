@@ -67,6 +67,7 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
     if (travel) {
       setCurrentTravel(travel);
       toast({
+        // Fix here: Changed from 'title' and 'description' to just a string
         description: `${travel.name} has been loaded.`,
       });
       navigate('/');

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { Modal, Form, Input, DatePicker, Select, Switch, Table, Checkbox, InputNumber, Button, Space, Typography, Radio } from 'antd';
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
@@ -146,16 +147,16 @@ const ExpenseFormDialog: React.FC<ExpenseFormDialogProps> = ({
           updated: new Date()
         });
       } else {
-        // Add new expense
+        // Add new expense - Fix here: changed parameter order to match the expected signature
         addExpense(
           numericAmount,
           values.date.toDate(),
           values.type as ExpenseType,
-          values.type === 'Custom' ? values.customType : undefined,
           filteredPayers,
           paidFromFund,
           participants,
-          values.comment || undefined
+          values.comment,
+          values.type === 'Custom' ? values.customType : undefined
         );
       }
       
