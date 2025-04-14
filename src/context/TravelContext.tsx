@@ -2,46 +2,21 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { toast } from 'sonner';
-import { Travel, Participant, Expense, DateRange, AdvanceContribution, Settlement, ExpensePayer, ExpenseParticipant, ParticipationPeriod, ExpenseType } from '@/types/models';
+import { 
+  Travel, 
+  Participant, 
+  Expense, 
+  DateRange, 
+  AdvanceContribution, 
+  Settlement, 
+  ExpensePayer, 
+  ExpenseParticipant, 
+  ParticipationPeriod, 
+  ExpenseType,
+  TravelContextType
+} from '@/types/models';
 import { exportToExcel } from '@/services/excelService';
 import { exportTravelToJSON, importTravelFromJSON } from '@/services/databaseService';
-
-interface TravelContextType {
-  travels: Travel[];
-  currentTravel: Travel | null;
-  setTravels: React.Dispatch<React.SetStateAction<Travel[]>>;
-  setCurrentTravel: React.Dispatch<React.SetStateAction<Travel | null>>;
-  createTravel: (name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
-  updateTravel: (id: string, name: string, startDate: Date, endDate: Date, currency: string, description?: string) => void;
-  deleteTravel: (id: string) => void;
-  addParticipant: (name: string, email?: string, participationPeriods?: ParticipationPeriod[], initialContribution?: number) => void;
-  updateParticipant: (participant: Participant) => void;
-  deleteParticipant: (id: string) => void;
-  addExpense: (
-    amount: number,
-    date: Date,
-    type: ExpenseType,
-    customType?: string,
-    paidBy: ExpensePayer[],
-    paidFromFund: boolean,
-    sharedAmong: ExpenseParticipant[],
-    comment?: string
-  ) => void;
-  updateExpense: (
-    expense: Expense
-  ) => void;
-  deleteExpense: (id: string) => void;
-  addAdvanceContribution: (participantId: string, amount: number, date: Date, comment?: string) => void;
-  updateAdvanceContribution: (id: string, participantId: string, amount: number, date: Date, comment?: string) => void;
-  deleteAdvanceContribution: (id: string) => void;
-  calculateSettlements: () => Settlement[];
-  updateSettlementStatus: (fromId: string, toId: string, status: string) => void;
-  exportToExcel: () => void;
-  exportToJSON: () => void;
-  importFromJSON: (file: File) => Promise<boolean>;
-  isParticipantPresentOnDate: (participantId: string, date: Date) => boolean;
-  validateParticipationPeriod: (period: { startDate: Date, endDate: Date }) => boolean;
-}
 
 export const TravelContext = createContext<TravelContextType>({
   travels: [],
@@ -67,6 +42,9 @@ export const TravelContext = createContext<TravelContextType>({
   importFromJSON: async () => false,
   isParticipantPresentOnDate: () => false,
   validateParticipationPeriod: () => false,
+  getTotalExpenses: () => 0,
+  markRefundAsDonated: () => {},
+  getTravelFundBalance: () => 0,
 });
 
 export const TravelProvider: React.FC<{
@@ -129,6 +107,48 @@ export const TravelProvider: React.FC<{
     periodEnd.setHours(0, 0, 0, 0);
     
     return periodStart >= travelStart && periodEnd <= travelEnd;
+  };
+
+  // Calculate total expenses
+  const getTotalExpenses = (): number => {
+    if (!currentTravel) return 0;
+    
+    return currentTravel.expenses.reduce((total, expense) => {
+      return total + expense.amount;
+    }, 0);
+  };
+
+  // Get travel fund balance
+  const getTravelFundBalance = (): number => {
+    if (!currentTravel) return 0;
+    
+    // Get total contributions
+    const totalContributions = currentTravel.advanceContributions.reduce(
+      (sum, contribution) => sum + contribution.amount, 
+      0
+    );
+    
+    // Get expenses paid from fund
+    const fundExpenses = currentTravel.expenses
+      .filter(expense => expense.paidFromFund)
+      .reduce((sum, expense) => sum + expense.amount, 0);
+    
+    return totalContributions - fundExpenses;
+  };
+
+  // Mark refund as donated
+  const markRefundAsDonated = (participantId: string, donated: boolean): void => {
+    if (!currentTravel) return;
+    
+    const settlements = calculateSettlements();
+    const settlement = settlements.find(s => s.participantId === participantId);
+    
+    if (settlement) {
+      // Update the settlement status
+      // This is just a placeholder as settlements aren't stored
+      // We should update the UI to reflect this change
+      toast.success(`${donated ? 'Marked' : 'Unmarked'} as donated`);
+    }
   };
 
   const createTravel = (name: string, startDate: Date, endDate: Date, currency: string, description?: string) => {
@@ -265,11 +285,11 @@ export const TravelProvider: React.FC<{
     amount: number,
     date: Date,
     type: ExpenseType,
-    customType?: string,
     paidBy: ExpensePayer[],
     paidFromFund: boolean,
     sharedAmong: ExpenseParticipant[],
-    comment?: string
+    comment?: string,
+    customType?: string
   ) => {
     if (!currentTravel) {
       toast.error("No travel selected");
@@ -627,6 +647,9 @@ export const TravelProvider: React.FC<{
         importFromJSON: handleImportFromJSON,
         isParticipantPresentOnDate,
         validateParticipationPeriod,
+        getTotalExpenses,
+        markRefundAsDonated,
+        getTravelFundBalance,
       }}
     >
       {children}

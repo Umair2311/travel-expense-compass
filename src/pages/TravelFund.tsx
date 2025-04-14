@@ -148,15 +148,13 @@ const TravelFund = () => {
       return;
     }
     
-    const updatedContribution: AdvanceContribution = {
-      ...editingContribution,
+    updateAdvanceContribution(
+      editingContribution.id,
       participantId,
-      amount: parseFloat(amount),
+      parseFloat(amount),
       date,
-      comment: comment || undefined,
-    };
-    
-    updateAdvanceContribution(updatedContribution);
+      comment || undefined
+    );
     
     setEditingContribution(null);
     setAmount('');
@@ -171,7 +169,7 @@ const TravelFund = () => {
   const openEditDialog = (contribution: AdvanceContribution) => {
     setEditingContribution(contribution);
     setAmount(contribution.amount.toString());
-    setDate(contribution.date);
+    setDate(new Date(contribution.date));
     setParticipantId(contribution.participantId);
     setComment(contribution.comment || '');
     setIsEditDialogOpen(true);
@@ -306,7 +304,7 @@ const TravelFund = () => {
                       className="grid grid-cols-[1fr_auto_auto] md:grid-cols-[1fr_1fr_auto_auto] gap-4 p-4 border-b last:border-b-0 items-center"
                     >
                       <div className="flex flex-col">
-                        <span>{format(contribution.date, 'MMM d, yyyy')}</span>
+                        <span>{format(new Date(contribution.date), 'MMM d, yyyy')}</span>
                         <span className="text-muted-foreground text-sm md:hidden">
                           {getParticipantName(contribution.participantId)}
                         </span>

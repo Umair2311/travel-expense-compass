@@ -94,11 +94,11 @@ export interface TravelContextType {
     amount: number,
     date: Date,
     type: ExpenseType,
-    customType?: string,
     paidBy: ExpensePayer[],
     paidFromFund: boolean,
     sharedAmong: ExpenseParticipant[],
-    comment?: string
+    comment?: string,
+    customType?: string
   ) => void;
   updateExpense: (expense: Expense) => void;
   deleteExpense: (id: string) => void;
@@ -112,4 +112,7 @@ export interface TravelContextType {
   importFromJSON: (file: File) => Promise<boolean>;
   isParticipantPresentOnDate: (participantId: string, date: Date) => boolean;
   validateParticipationPeriod: (period: { startDate: Date, endDate: Date }) => boolean;
+  getTotalExpenses: () => number;
+  markRefundAsDonated: (participantId: string, donated: boolean) => void;
+  getTravelFundBalance: () => number;
 }

@@ -229,7 +229,7 @@ const Participants = () => {
                       <Popconfirm
                         title="Remove participant"
                         description="Are you sure you want to remove this participant?"
-                        onConfirm={() => removeParticipant(participant.id)}
+                        onConfirm={() => deleteParticipant(participant.id)}
                         okText="Yes"
                         cancelText="No"
                       >
