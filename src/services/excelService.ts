@@ -34,7 +34,8 @@ export const exportToExcel = async (data: ExportData) => {
       left: { style: 'thin' },
       bottom: { style: 'thin' },
       right: { style: 'thin' }
-    }
+    },
+    alignment: { horizontal: 'center', vertical: 'middle' }
   };
   
   // Style for data cells
@@ -44,7 +45,8 @@ export const exportToExcel = async (data: ExportData) => {
       left: { style: 'thin' },
       bottom: { style: 'thin' },
       right: { style: 'thin' }
-    }
+    },
+    alignment: { vertical: 'middle' }
   };
   
   // Travel Info Section
@@ -92,6 +94,7 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   participantsHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
+    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -132,6 +135,7 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   expensesHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
+    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -181,6 +185,7 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   contributionsHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
+    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -217,6 +222,7 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   settlementsHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
+    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -242,6 +248,21 @@ export const exportToExcel = async (data: ExportData) => {
     const lengths = column.values?.filter(v => v !== undefined).map(v => v.toString().length);
     const maxLength = Math.max(...(lengths || [0]), 10);
     column.width = maxLength + 2;
+  });
+  
+  // Add alternating row colors for better readability
+  [participantsSheet, expensesSheet, contributionsSheet, settlementsSheet].forEach(sheet => {
+    sheet.eachRow((row, rowNumber) => {
+      if (rowNumber > 1 && rowNumber % 2 === 0) {
+        row.eachCell(cell => {
+          cell.fill = {
+            type: 'pattern',
+            pattern: 'solid',
+            fgColor: { argb: 'F9F9F9' }
+          } as ExcelJS.FillPattern;
+        });
+      }
+    });
   });
   
   // Write to file

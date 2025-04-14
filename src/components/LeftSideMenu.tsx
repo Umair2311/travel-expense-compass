@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
@@ -168,7 +169,7 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
               </SidebarGroup>
             )}
             
-            {/* Travel Export/Import Options */}
+            {/* Travel Export/Import Options - ONLY VISIBLE when a travel is selected */}
             {currentTravel && (
               <SidebarGroup>
                 <SidebarGroupLabel>Export/Import</SidebarGroupLabel>
