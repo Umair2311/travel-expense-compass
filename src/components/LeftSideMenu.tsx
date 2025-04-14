@@ -111,6 +111,24 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
                       <span>New Travel</span>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  
+                  {/* Import from JSON - ALWAYS VISIBLE */}
+                  <SidebarMenuItem>
+                    <SidebarMenuButton 
+                      onClick={() => fileInputRef.current?.click()}
+                      tooltip="Import from JSON"
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span>Import from JSON</span>
+                    </SidebarMenuButton>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      className="hidden"
+                      accept=".json"
+                      onChange={handleFileUpload}
+                    />
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
@@ -169,10 +187,10 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
               </SidebarGroup>
             )}
             
-            {/* Travel Export/Import Options - ONLY VISIBLE when a travel is selected */}
+            {/* Travel Export Options - ONLY VISIBLE when a travel is selected */}
             {currentTravel && (
               <SidebarGroup>
-                <SidebarGroupLabel>Export/Import</SidebarGroupLabel>
+                <SidebarGroupLabel>Export Options</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
                     <SidebarMenuItem>
@@ -193,23 +211,6 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
                         <Download className="h-4 w-4" />
                         <span>Export as JSON</span>
                       </SidebarMenuButton>
-                    </SidebarMenuItem>
-                    
-                    <SidebarMenuItem>
-                      <SidebarMenuButton 
-                        onClick={() => fileInputRef.current?.click()}
-                        tooltip="Import from JSON"
-                      >
-                        <Upload className="h-4 w-4" />
-                        <span>Import from JSON</span>
-                      </SidebarMenuButton>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        className="hidden"
-                        accept=".json"
-                        onChange={handleFileUpload}
-                      />
                     </SidebarMenuItem>
                   </SidebarMenu>
                 </SidebarGroupContent>

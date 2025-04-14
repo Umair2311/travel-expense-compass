@@ -9,7 +9,7 @@ import { PlusCircle, Users, ReceiptText, PiggyBank, Calendar } from 'lucide-reac
 import Layout from '@/components/Layout';
 
 const Index = () => {
-  const { currentTravel, travels } = useTravel();
+  const { currentTravel, travels, setCurrentTravel } = useTravel();
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -18,6 +18,14 @@ const Index = () => {
       navigate('/new-travel');
     }
   }, [travels, navigate]);
+  
+  // Handle travel selection
+  const handleTravelSelect = (travelId: string) => {
+    const travel = travels.find(t => t.id === travelId);
+    if (travel) {
+      setCurrentTravel(travel);
+    }
+  };
   
   // If no current travel is selected but there are travels, show travel selection
   if (!currentTravel && travels.length > 0) {
@@ -35,7 +43,7 @@ const Index = () => {
                 <CardHeader className="travel-gradient text-white">
                   <CardTitle>{travel.name}</CardTitle>
                   <CardDescription className="text-white/80">
-                    {format(travel.startDate, 'MMM d')} - {format(travel.endDate, 'MMM d, yyyy')}
+                    {format(new Date(travel.startDate), 'MMM d')} - {format(new Date(travel.endDate), 'MMM d, yyyy')}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-4">
@@ -51,7 +59,7 @@ const Index = () => {
                 <CardFooter className="bg-muted/50">
                   <Button 
                     className="w-full" 
-                    onClick={() => navigate(`/travel/${travel.id}`)}
+                    onClick={() => handleTravelSelect(travel.id)}
                   >
                     Open Travel
                   </Button>
@@ -87,7 +95,7 @@ const Index = () => {
             <div className="flex items-center gap-2 mt-1 text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>
-                {format(currentTravel.startDate, 'MMM d')} - {format(currentTravel.endDate, 'MMM d, yyyy')}
+                {format(new Date(currentTravel.startDate), 'MMM d')} - {format(new Date(currentTravel.endDate), 'MMM d, yyyy')}
               </span>
             </div>
           </div>
@@ -185,7 +193,7 @@ const Index = () => {
                               {expense.type}{expense.customType ? `: ${expense.customType}` : ''}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {format(expense.date, 'MMM d, yyyy')}
+                              {format(new Date(expense.date), 'MMM d, yyyy')}
                             </div>
                           </div>
                           <div className="font-medium">${expense.amount.toFixed(2)}</div>
@@ -226,7 +234,7 @@ const Index = () => {
                             <div>
                               <div className="font-medium">{participant?.name || 'Unknown'}</div>
                               <div className="text-sm text-muted-foreground">
-                                {format(contribution.date, 'MMM d, yyyy')}
+                                {format(new Date(contribution.date), 'MMM d, yyyy')}
                               </div>
                             </div>
                             <div className="font-medium">${contribution.amount.toFixed(2)}</div>
