@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
@@ -66,10 +65,7 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
     const travel = travels.find(t => t.id === travelId);
     if (travel) {
       setCurrentTravel(travel);
-      toast({
-        // Fix here: Changed from 'title' and 'description' to just a string
-        description: `${travel.name} has been loaded.`,
-      });
+      toast(`${travel.name} has been loaded.`);
       navigate('/');
     }
   };
