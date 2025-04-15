@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
 import Layout from '@/components/Layout';
@@ -44,15 +44,29 @@ const Summary = () => {
   
   const [sortBy, setSortBy] = useState<keyof Settlement>('name');
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
+  const [totalExpenses, setTotalExpenses] = useState(0);
+  
+  // Load data when component mounts or currentTravel changes
+  useEffect(() => {
+    if (currentTravel) {
+      const calculatedSettlements = calculateSettlements();
+      setSettlements(calculatedSettlements);
+      setTotalExpenses(getTotalExpenses());
+      console.log("Loaded settlements:", calculatedSettlements);
+    }
+  }, [currentTravel, calculateSettlements, getTotalExpenses]);
   
   // Redirect if no current travel
+  useEffect(() => {
+    if (!currentTravel) {
+      navigate('/');
+    }
+  }, [currentTravel, navigate]);
+  
   if (!currentTravel) {
-    navigate('/');
     return null;
   }
-  
-  const settlements = calculateSettlements();
-  const totalExpenses = getTotalExpenses();
   
   const totalDue = settlements.reduce((sum, s) => sum + s.dueAmount, 0);
   const totalRefund = settlements.reduce((sum, s) => sum + s.refundAmount, 0);
@@ -81,12 +95,15 @@ const Summary = () => {
   
   const handleDonationToggle = (participantId: string, donated: boolean) => {
     markRefundAsDonated(participantId, donated);
+    // Update settlements after donation toggle
+    setSettlements(calculateSettlements());
   };
   
   // Get highest contributor
-  const highestContributor = [...settlements].sort((a, b) => 
-    (b.advancePaid + b.personallyPaid) - (a.advancePaid + a.personallyPaid)
-  )[0];
+  const highestContributor = settlements.length > 0 ? 
+    [...settlements].sort((a, b) => 
+      (b.advancePaid + b.personallyPaid) - (a.advancePaid + a.personallyPaid)
+    )[0] : null;
   
   return (
     <Layout>

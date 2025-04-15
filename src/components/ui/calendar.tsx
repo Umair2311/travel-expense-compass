@@ -5,6 +5,7 @@ import { DayPicker } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
+import { useIsMobile } from "@/hooks/use-mobile";
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>;
 
@@ -14,6 +15,8 @@ function Calendar({
   showOutsideDays = true,
   ...props
 }: CalendarProps) {
+  const isMobile = useIsMobile();
+  
   return (
     <DayPicker
       showOutsideDays={showOutsideDays}
@@ -52,6 +55,7 @@ function Calendar({
         day_hidden: "invisible",
         ...classNames,
       }}
+      numberOfMonths={isMobile ? 1 : props.numberOfMonths}
       components={{
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,

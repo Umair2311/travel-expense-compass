@@ -74,17 +74,17 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
   return (
     <SidebarProvider defaultOpen={!isMobile}>
       <div className="flex min-h-screen w-full">
-        <Sidebar>
-          <SidebarRail /> {/* Adds a rail handle for resizing */}
+        <Sidebar className="bg-background border-r">
+          <SidebarRail className="bg-background" /> {/* Add background to rail */}
           
-          <SidebarHeader>
+          <SidebarHeader className="bg-background">
             <div className="flex items-center gap-2 px-4 py-2">
               <PlaneTakeoff className="h-6 w-6 text-travel-primary" />
               <span className="text-xl font-bold">Travel Splitter</span>
             </div>
           </SidebarHeader>
           
-          <SidebarContent>
+          <SidebarContent className="bg-background">
             {/* Main Navigation */}
             <SidebarGroup>
               <SidebarGroupLabel>Navigation</SidebarGroupLabel>
@@ -241,7 +241,7 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
             )}
           </SidebarContent>
           
-          <SidebarFooter>
+          <SidebarFooter className="bg-background">
             <div className="px-3 py-2">
               <Button
                 variant="outline"

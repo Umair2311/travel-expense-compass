@@ -36,6 +36,9 @@
     --radius: 0.5rem;
     
     --travel-primary: 255 81% 75%;
+    --travel-secondary: 154 70% 50%;
+    --travel-accent: 337 80% 56%;
+    --travel-error: 0 84% 60%;
   }
  
   /* ... keep existing code (dark theme variables) */
@@ -57,10 +60,15 @@
 
 /* Responsive datepicker styles - improved for mobile */
 @media (max-width: 640px) {
+  .ant-picker-dropdown.responsive-datepicker-popup {
+    width: 100% !important;
+    max-width: 320px !important;
+  }
+  
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-panel-container {
     flex-direction: column !important;
     width: 100% !important;
-    max-width: 280px !important;
+    max-width: 320px !important;
   }
   
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-panels {
@@ -74,7 +82,12 @@
   
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-content th,
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-content td {
-    padding: 2px !important;
+    padding: 3px !important;
+  }
+  
+  /* Hide second panel on mobile */
+  .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-panel:nth-child(2) {
+    display: none !important;
   }
 }
 
@@ -110,4 +123,32 @@
 
 .ant-modal-content {
   pointer-events: auto !important;
+}
+
+/* Make sure modals have background */
+.ant-modal-content,
+.ant-popover-inner,
+.ant-dropdown,
+.ant-picker-dropdown {
+  background-color: var(--background) !important;
+  backdrop-filter: blur(8px);
+}
+
+/* Fix z-index for modals and popovers */
+.ant-dropdown, 
+.ant-picker-dropdown, 
+.ant-popover {
+  z-index: 1001 !important;
+}
+
+/* Make sure that modals and popovers have proper background */
+.bg-background {
+  background-color: hsl(var(--background)) !important;
+}
+
+/* Fix for the sidebar to ensure it's not transparent */
+.sidebar-panel,
+.sidebar-panel-inner,
+.sidebar {
+  background-color: hsl(var(--background)) !important;
 }

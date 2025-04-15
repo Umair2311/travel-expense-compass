@@ -25,15 +25,15 @@ export const exportToExcel = async (data: ExportData) => {
   // Add travel info worksheet
   const infoSheet = workbook.addWorksheet('Travel Info');
   
-  // Style for headers
+  // Style for headers - dark gray with white text
   const headerStyle = {
     font: { bold: true, size: 12, color: { argb: 'FFFFFFFF' } },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: '9B87F5' } } as ExcelJS.FillPattern,
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: '383838' } } as ExcelJS.FillPattern,
     border: {
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' }
+      top: { style: 'thin', color: { argb: 'D0D0D0' } },
+      left: { style: 'thin', color: { argb: 'D0D0D0' } },
+      bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
+      right: { style: 'thin', color: { argb: 'D0D0D0' } }
     },
     alignment: { horizontal: 'center', vertical: 'middle' }
   };
@@ -41,20 +41,32 @@ export const exportToExcel = async (data: ExportData) => {
   // Style for data cells
   const dataCellStyle = {
     border: {
-      top: { style: 'thin' },
-      left: { style: 'thin' },
-      bottom: { style: 'thin' },
-      right: { style: 'thin' }
+      top: { style: 'thin', color: { argb: 'D0D0D0' } },
+      left: { style: 'thin', color: { argb: 'D0D0D0' } },
+      bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
+      right: { style: 'thin', color: { argb: 'D0D0D0' } }
     },
     alignment: { vertical: 'middle' }
+  };
+  
+  // Title style
+  const titleStyle = {
+    font: { bold: true, size: 16 },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F2F2F2' } } as ExcelJS.FillPattern,
+    alignment: { horizontal: 'center', vertical: 'middle' },
+    border: {
+      top: { style: 'thin', color: { argb: 'D0D0D0' } },
+      left: { style: 'thin', color: { argb: 'D0D0D0' } },
+      bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
+      right: { style: 'thin', color: { argb: 'D0D0D0' } }
+    }
   };
   
   // Travel Info Section
   infoSheet.mergeCells('A1:B1');
   const titleCell = infoSheet.getCell('A1');
   titleCell.value = `Travel Details: ${travel.name}`;
-  titleCell.font = { bold: true, size: 16 };
-  titleCell.alignment = { horizontal: 'center' };
+  Object.assign(titleCell, titleStyle);
   
   infoSheet.getColumn('A').width = 20;
   infoSheet.getColumn('B').width = 30;
@@ -94,7 +106,6 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   participantsHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
-    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -135,7 +146,6 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   expensesHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
-    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -185,7 +195,6 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   contributionsHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
-    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -222,7 +231,6 @@ export const exportToExcel = async (data: ExportData) => {
   // Apply header style
   settlementsHeaderRow.eachCell((cell) => {
     Object.assign(cell, headerStyle);
-    cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
   });
   
   // Add data rows
@@ -258,11 +266,18 @@ export const exportToExcel = async (data: ExportData) => {
           cell.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'F9F9F9' }
+            fgColor: { argb: 'F8F8F8' }
           } as ExcelJS.FillPattern;
         });
       }
     });
+  });
+  
+  // Set print options for all sheets
+  [infoSheet, participantsSheet, expensesSheet, contributionsSheet, settlementsSheet].forEach(sheet => {
+    sheet.pageSetup.paperSize = 9; // A4
+    sheet.pageSetup.orientation = 'landscape';
+    sheet.pageSetup.fitToPage = true;
   });
   
   // Write to file
