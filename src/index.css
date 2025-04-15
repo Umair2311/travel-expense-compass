@@ -125,19 +125,21 @@
   pointer-events: auto !important;
 }
 
-/* Make sure modals have background */
+/* Fix modals to ensure they have solid background */
 .ant-modal-content,
 .ant-popover-inner,
 .ant-dropdown,
 .ant-picker-dropdown {
-  background-color: var(--background) !important;
-  backdrop-filter: blur(8px);
+  background-color: hsl(var(--background)) !important;
+  backdrop-filter: none !important;
 }
 
 /* Fix z-index for modals and popovers */
 .ant-dropdown, 
 .ant-picker-dropdown, 
-.ant-popover {
+.ant-popover,
+.ant-modal-mask,
+.ant-modal-wrap {
   z-index: 1001 !important;
 }
 
@@ -151,4 +153,20 @@
 .sidebar-panel-inner,
 .sidebar {
   background-color: hsl(var(--background)) !important;
+}
+
+/* Force modal content to be fully opaque */
+.ant-modal {
+  background-color: transparent !important;
+}
+
+.ant-modal-content {
+  background-color: #ffffff !important; 
+  opacity: 1 !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
+}
+
+/* Fix for Ant Design Modal mask */
+.ant-modal-mask {
+  background-color: rgba(0, 0, 0, 0.45) !important;
 }

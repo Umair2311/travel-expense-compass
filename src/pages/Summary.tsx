@@ -50,16 +50,21 @@ const Summary = () => {
   // Load data when component mounts or currentTravel changes
   useEffect(() => {
     if (currentTravel) {
+      console.log("Loading Summary data for travel:", currentTravel);
       const calculatedSettlements = calculateSettlements();
+      console.log("Calculated settlements:", calculatedSettlements);
       setSettlements(calculatedSettlements);
-      setTotalExpenses(getTotalExpenses());
-      console.log("Loaded settlements:", calculatedSettlements);
+      
+      const expensesTotal = getTotalExpenses();
+      console.log("Total expenses:", expensesTotal);
+      setTotalExpenses(expensesTotal);
     }
   }, [currentTravel, calculateSettlements, getTotalExpenses]);
   
   // Redirect if no current travel
   useEffect(() => {
     if (!currentTravel) {
+      console.log("No current travel, redirecting to home");
       navigate('/');
     }
   }, [currentTravel, navigate]);
@@ -68,18 +73,29 @@ const Summary = () => {
     return null;
   }
   
-  const totalDue = settlements.reduce((sum, s) => sum + s.dueAmount, 0);
-  const totalRefund = settlements.reduce((sum, s) => sum + s.refundAmount, 0);
-  const totalDonated = settlements.reduce((sum, s) => s.donated ? sum + s.refundAmount : sum, 0);
+  const totalDue = settlements.reduce((sum, s) => sum + (s.dueAmount || 0), 0);
+  const totalRefund = settlements.reduce((sum, s) => sum + (s.refundAmount || 0), 0);
+  const totalDonated = settlements.reduce((sum, s) => s.donated ? sum + (s.refundAmount || 0) : sum, 0);
+  
+  // Ensure we have valid numbers for display
+  const displayTotalExpenses = isNaN(totalExpenses) ? 0 : totalExpenses;
+  const displayTotalDue = isNaN(totalDue) ? 0 : totalDue;
+  const displayTotalRefund = isNaN(totalRefund - totalDonated) ? 0 : (totalRefund - totalDonated);
+  
+  console.log("Display values:", {
+    expenses: displayTotalExpenses,
+    due: displayTotalDue,
+    refund: displayTotalRefund
+  });
   
   const sortedSettlements = [...settlements].sort((a, b) => {
     if (sortBy === 'name') {
       return sortDirection === 'asc'
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name);
+        ? (a.name || '').localeCompare(b.name || '')
+        : (b.name || '').localeCompare(a.name || '');
     } else {
-      const valA = a[sortBy] as number;
-      const valB = b[sortBy] as number;
+      const valA = a[sortBy] as number || 0;
+      const valB = b[sortBy] as number || 0;
       return sortDirection === 'asc' ? valA - valB : valB - valA;
     }
   });
@@ -102,7 +118,7 @@ const Summary = () => {
   // Get highest contributor
   const highestContributor = settlements.length > 0 ? 
     [...settlements].sort((a, b) => 
-      (b.advancePaid + b.personallyPaid) - (a.advancePaid + a.personallyPaid)
+      ((b.advancePaid || 0) + (b.personallyPaid || 0)) - ((a.advancePaid || 0) + (a.personallyPaid || 0))
     )[0] : null;
   
   return (
@@ -128,7 +144,7 @@ const Summary = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                ${totalExpenses.toFixed(2)}
+                ${displayTotalExpenses.toFixed(2)}
               </div>
               <div className="text-muted-foreground text-sm">
                 All travel expenses
@@ -144,7 +160,7 @@ const Summary = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                ${totalDue.toFixed(2)}
+                ${displayTotalDue.toFixed(2)}
               </div>
               <div className="text-muted-foreground text-sm">
                 To be collected
@@ -160,7 +176,7 @@ const Summary = () => {
             </CardHeader>
             <CardContent>
               <div className="text-3xl font-bold">
-                ${(totalRefund - totalDonated).toFixed(2)}
+                ${displayTotalRefund.toFixed(2)}
               </div>
               <div className="text-muted-foreground text-sm">
                 To be returned
@@ -169,7 +185,7 @@ const Summary = () => {
           </Card>
         </div>
         
-        {highestContributor && highestContributor.advancePaid + highestContributor.personallyPaid > 0 && (
+        {highestContributor && (highestContributor.advancePaid || 0) + (highestContributor.personallyPaid || 0) > 0 && (
           <Card className="mb-8 bg-gradient-to-r from-travel-primary/10 to-travel-secondary/10">
             <CardContent className="flex items-center gap-3 p-4">
               <div className="bg-yellow-500 text-white p-2 rounded-full">
@@ -178,7 +194,7 @@ const Summary = () => {
               <div className="flex-1">
                 <p className="font-medium">{highestContributor.name} contributed the most</p>
                 <p className="text-sm text-muted-foreground">
-                  With a total of ${(highestContributor.advancePaid + highestContributor.personallyPaid).toFixed(2)}
+                  With a total of ${((highestContributor.advancePaid || 0) + (highestContributor.personallyPaid || 0)).toFixed(2)}
                 </p>
               </div>
             </CardContent>
@@ -193,7 +209,7 @@ const Summary = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {settlements.length === 0 ? (
+            {(!settlements || settlements.length === 0) ? (
               <div className="text-center py-6 text-muted-foreground">
                 <AlertTriangle className="h-8 w-8 mx-auto mb-2" />
                 <p>No participants or expenses to calculate settlements</p>
@@ -303,25 +319,25 @@ const Summary = () => {
                           {settlement.name}
                         </TableCell>
                         <TableCell>
-                          ${settlement.advancePaid.toFixed(2)}
+                          ${(settlement.advancePaid || 0).toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          ${settlement.personallyPaid.toFixed(2)}
+                          ${(settlement.personallyPaid || 0).toFixed(2)}
                         </TableCell>
                         <TableCell>
-                          ${settlement.expenseShare.toFixed(2)}
+                          ${(settlement.expenseShare || 0).toFixed(2)}
                         </TableCell>
-                        <TableCell className={settlement.dueAmount > 0 ? 'text-travel-error font-medium' : ''}>
-                          {settlement.dueAmount > 0 ? `$${settlement.dueAmount.toFixed(2)}` : '-'}
+                        <TableCell className={(settlement.dueAmount || 0) > 0 ? 'text-travel-error font-medium' : ''}>
+                          {(settlement.dueAmount || 0) > 0 ? `$${(settlement.dueAmount || 0).toFixed(2)}` : '-'}
                         </TableCell>
-                        <TableCell className={settlement.refundAmount > 0 ? 'text-travel-secondary font-medium' : ''}>
-                          {settlement.refundAmount > 0 ? `$${settlement.refundAmount.toFixed(2)}` : '-'}
+                        <TableCell className={(settlement.refundAmount || 0) > 0 ? 'text-travel-secondary font-medium' : ''}>
+                          {(settlement.refundAmount || 0) > 0 ? `$${(settlement.refundAmount || 0).toFixed(2)}` : '-'}
                         </TableCell>
                         <TableCell>
-                          {settlement.refundAmount > 0 ? (
+                          {(settlement.refundAmount || 0) > 0 ? (
                             <div className="flex items-center gap-2">
                               <Switch
-                                checked={settlement.donated}
+                                checked={settlement.donated || false}
                                 onCheckedChange={(checked) => 
                                   handleDonationToggle(settlement.participantId, checked)
                                 }

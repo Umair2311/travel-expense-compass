@@ -52,7 +52,9 @@ export const TravelProvider: React.FC<{
   const [travels, setTravels] = useState<Travel[]>(() => {
     try {
       const storedTravels = localStorage.getItem('travels');
-      return storedTravels ? JSON.parse(storedTravels) : [];
+      const parsedTravels = storedTravels ? JSON.parse(storedTravels) : [];
+      console.log("Loaded travels from localStorage:", parsedTravels);
+      return parsedTravels;
     } catch (error) {
       console.error("Failed to load travels from local storage:", error);
       return [];
@@ -62,6 +64,7 @@ export const TravelProvider: React.FC<{
 
   useEffect(() => {
     try {
+      console.log("Saving travels to localStorage:", travels);
       localStorage.setItem('travels', JSON.stringify(travels));
     } catch (error) {
       console.error("Failed to save travels to local storage:", error);
@@ -107,9 +110,12 @@ export const TravelProvider: React.FC<{
   const getTotalExpenses = (): number => {
     if (!currentTravel) return 0;
     
-    return currentTravel.expenses.reduce((total, expense) => {
+    const total = currentTravel.expenses.reduce((total, expense) => {
       return total + expense.amount;
     }, 0);
+    
+    console.log("Total expenses calculation:", total);
+    return total;
   };
 
   const getTravelFundBalance = (): number => {
@@ -152,12 +158,18 @@ export const TravelProvider: React.FC<{
       created: new Date(),
       updated: new Date(),
     };
-    setTravels([...travels, newTravel]);
+    
+    console.log("Creating new travel:", newTravel);
+    
+    const updatedTravels = [...travels, newTravel];
+    setTravels(updatedTravels);
     setCurrentTravel(newTravel);
     toast.success(`Travel "${name}" created`);
   };
 
   const updateTravel = (id: string, name: string, startDate: Date, endDate: Date, currency: string, description?: string) => {
+    console.log("Updating travel:", { id, name, startDate, endDate, currency, description });
+    
     const updatedTravels = travels.map((travel) =>
       travel.id === id ? { ...travel, name, startDate, endDate, currency, description, updated: new Date() } : travel
     );
@@ -172,6 +184,8 @@ export const TravelProvider: React.FC<{
   };
 
   const deleteTravel = (id: string) => {
+    console.log("Deleting travel:", id);
+    
     setTravels(travels.filter((travel) => travel.id !== id));
     setCurrentTravel(null);
     toast.success("Travel deleted");
@@ -182,6 +196,8 @@ export const TravelProvider: React.FC<{
       toast.error("No travel selected");
       return;
     }
+
+    console.log("Adding participant:", { name, email, participationPeriods, initialContribution });
 
     const defaultPeriod: ParticipationPeriod = {
       id: uuidv4(),
@@ -196,16 +212,22 @@ export const TravelProvider: React.FC<{
       participationPeriods: participationPeriods || [defaultPeriod],
     };
 
+    console.log("New participant object:", newParticipant);
+    
     const updatedParticipants = [...currentTravel.participants, newParticipant];
     
     const updatedTravel = {
       ...currentTravel,
-      participants: updatedParticipants
+      participants: updatedParticipants,
+      updated: new Date()
     };
     
-    const updatedTravels = travels.map(travel =>
+    const updatedTravels = travels.map(travel => 
       travel.id === currentTravel.id ? updatedTravel : travel
     );
+    
+    console.log("Updated travels array:", updatedTravels);
+    console.log("Updated current travel:", updatedTravel);
     
     setTravels(updatedTravels);
     setCurrentTravel(updatedTravel);
@@ -225,18 +247,24 @@ export const TravelProvider: React.FC<{
       return;
     }
 
+    console.log("Updating participant:", updatedParticipant);
+
     const updatedParticipants = currentTravel.participants.map(participant =>
       participant.id === updatedParticipant.id ? updatedParticipant : participant
     );
     
     const updatedTravel = {
       ...currentTravel,
-      participants: updatedParticipants
+      participants: updatedParticipants,
+      updated: new Date()
     };
     
     const updatedTravels = travels.map(travel =>
       travel.id === currentTravel.id ? updatedTravel : travel
     );
+    
+    console.log("Updated travels array after participant update:", updatedTravels);
+    console.log("Updated current travel after participant update:", updatedTravel);
     
     setTravels(updatedTravels);
     setCurrentTravel(updatedTravel);
@@ -250,16 +278,22 @@ export const TravelProvider: React.FC<{
       return;
     }
 
+    console.log("Deleting participant:", id);
+
     const updatedParticipants = currentTravel.participants.filter((participant) => participant.id !== id);
     
     const updatedTravel = {
       ...currentTravel,
-      participants: updatedParticipants
+      participants: updatedParticipants,
+      updated: new Date()
     };
     
     const updatedTravels = travels.map(travel =>
       travel.id === currentTravel.id ? updatedTravel : travel
     );
+    
+    console.log("Updated travels array after participant deletion:", updatedTravels);
+    console.log("Updated current travel after participant deletion:", updatedTravel);
     
     setTravels(updatedTravels);
     setCurrentTravel(updatedTravel);
@@ -453,10 +487,21 @@ export const TravelProvider: React.FC<{
 
   const calculateSettlements = () => {
     if (!currentTravel) {
+      console.log("No current travel, cannot calculate settlements");
       return [];
     }
 
+    console.log("Calculating settlements for travel:", currentTravel.name);
+    console.log("Participants:", currentTravel.participants);
+    console.log("Expenses:", currentTravel.expenses);
+    console.log("Contributions:", currentTravel.advanceContributions);
+
     const { participants, expenses, advanceContributions } = currentTravel;
+
+    if (!participants || participants.length === 0) {
+      console.log("No participants to calculate settlements");
+      return [];
+    }
 
     const participantExpenses: { [participantId: string]: number } = {};
     participants.forEach((p) => (participantExpenses[p.id] = 0));
@@ -483,51 +528,51 @@ export const TravelProvider: React.FC<{
       participantExpenses[contribution.participantId] -= contribution.amount;
     });
 
-    const settlements: Settlement[] = [];
-    const sortedParticipants = Object.entries(participantExpenses).sort(([, a], [, b]) => a - b);
+    console.log("Calculated participant expenses:", participantExpenses);
 
-    let i = 0;
-    let j = sortedParticipants.length - 1;
-
-    while (i < j) {
-      let debtorId = sortedParticipants[i][0];
-      let creditorId = sortedParticipants[j][0];
-      let amountOwed = sortedParticipants[i][1];
-      let amountReceivable = -sortedParticipants[j][1];
-
-      if (amountOwed <= 0) {
-        i++;
-        continue;
-      }
-      if (amountReceivable <= 0) {
-        j--;
-        continue;
-      }
-
-      let settlementAmount = Math.min(amountOwed, amountReceivable);
-
-      settlements.push({
-        participantId: debtorId,
-        dueAmount: settlementAmount,
-        refundAmount: 0,
-        name: participants.find(p => p.id === debtorId)?.name || '',
-        advancePaid: 0,
-        personallyPaid: 0,
-        expenseShare: 0,
+    const settlements: Settlement[] = participants.map(participant => {
+      const participantBalance = participantExpenses[participant.id] || 0;
+      
+      const personallyPaid = expenses
+        .filter(e => !e.paidFromFund)
+        .reduce((sum, expense) => {
+          const payerEntry = expense.paidBy.find(p => p.participantId === participant.id);
+          return sum + (payerEntry ? payerEntry.amount : 0);
+        }, 0);
+      
+      const advancePaid = advanceContributions
+        .filter(c => c.participantId === participant.id)
+        .reduce((sum, c) => sum + c.amount, 0);
+      
+      const expenseShare = expenses.reduce((sum, expense) => {
+        const participantShare = expense.sharedAmong.find(p => p.participantId === participant.id);
+        if (!participantShare || !participantShare.included) return sum;
+        
+        const includedParticipants = expense.sharedAmong.filter(p => p.included);
+        const totalWeight = includedParticipants.reduce((sum, p) => sum + p.weight, 0);
+        
+        if (totalWeight <= 0) return sum;
+        
+        const share = (participantShare.weight / totalWeight) * expense.amount;
+        return sum + share;
+      }, 0);
+      
+      const dueAmount = participantBalance > 0 ? participantBalance : 0;
+      const refundAmount = participantBalance < 0 ? -participantBalance : 0;
+      
+      return {
+        participantId: participant.id,
+        name: participant.name,
+        advancePaid,
+        personallyPaid,
+        expenseShare,
+        dueAmount,
+        refundAmount,
         donated: false
-      });
+      };
+    });
 
-      sortedParticipants[i][1] -= settlementAmount;
-      sortedParticipants[j][1] += settlementAmount;
-
-      if (sortedParticipants[i][1] <= 0) {
-        i++;
-      }
-      if (sortedParticipants[j][1] >= 0) {
-        j--;
-      }
-    }
-
+    console.log("Calculated settlements:", settlements);
     return settlements;
   };
 

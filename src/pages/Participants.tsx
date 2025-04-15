@@ -21,18 +21,26 @@ const Participants = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
   const [participationPeriods, setParticipationPeriods] = useState<ParticipationPeriod[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
+  
+  // Load participants from currentTravel whenever it changes
+  useEffect(() => {
+    if (currentTravel) {
+      console.log("Current Travel in Participants component:", currentTravel);
+      console.log("Participants count:", currentTravel.participants ? currentTravel.participants.length : 0);
+      setParticipants(currentTravel.participants || []);
+    }
+  }, [currentTravel]);
   
   // Log for debugging
   useEffect(() => {
-    console.log("Current Travel in Participants:", currentTravel);
-    if (currentTravel) {
-      console.log("Participants count:", currentTravel.participants.length);
-    }
-  }, [currentTravel]);
+    console.log("Participants state updated:", participants);
+  }, [participants]);
   
   // Redirect if no current travel
   useEffect(() => {
     if (!currentTravel) {
+      console.log("No current travel, redirecting to home");
       navigate('/');
     }
   }, [currentTravel, navigate]);
@@ -67,6 +75,13 @@ const Participants = () => {
       ? parseFloat(values.initialContribution) 
       : undefined;
     
+    console.log("Adding participant with values:", { 
+      name: values.name, 
+      email: values.email || undefined, 
+      periods,
+      initialContribution
+    });
+    
     addParticipant(
       values.name, 
       values.email || undefined, 
@@ -78,6 +93,7 @@ const Participants = () => {
   };
   
   const openEditModal = (participant: Participant) => {
+    console.log("Opening edit modal for participant:", participant);
     setEditingParticipant(participant);
     
     // Set the periods
@@ -110,6 +126,8 @@ const Participants = () => {
   const handleEditSubmit = (values: any) => {
     if (!editingParticipant) return;
     
+    console.log("Editing participant with values:", values);
+    
     // Convert periods from form
     const periods = participationPeriods.map((period, index) => {
       const dateRange = values[`period_${index}`];
@@ -127,6 +145,7 @@ const Participants = () => {
       participationPeriods: periods,
     };
     
+    console.log("Updated participant object:", updatedParticipant);
     updateParticipant(updatedParticipant);
     setIsEditModalOpen(false);
   };
@@ -183,11 +202,16 @@ const Participants = () => {
            current.isAfter(dayjs(currentTravel.endDate), 'day');
   };
   
+  // Make sure we're displaying the correct participant list from current travel
+  const displayParticipants = currentTravel.participants || [];
+  
+  console.log("Rendering participant list with:", displayParticipants);
+  
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <Title level={3}>Participants ({currentTravel.participants.length})</Title>
+          <Title level={3}>Participants ({displayParticipants.length})</Title>
           <Button
             type="primary" 
             icon={<PlusOutlined />}
@@ -198,7 +222,7 @@ const Participants = () => {
         </div>
         
         {/* Participant List */}
-        {currentTravel.participants.length === 0 ? (
+        {displayParticipants.length === 0 ? (
           <Card>
             <div className="py-10 text-center">
               <Text type="secondary" className="block mb-4">No participants added yet</Text>
@@ -222,7 +246,7 @@ const Participants = () => {
               xl: 3, 
               xxl: 3 
             }}
-            dataSource={currentTravel.participants}
+            dataSource={displayParticipants}
             renderItem={(participant) => (
               <List.Item>
                 <Card
@@ -280,6 +304,8 @@ const Participants = () => {
         footer={null}
         width={600}
         centered // Center vertically on mobile
+        className="bg-background"
+        maskStyle={{ backgroundColor: "rgba(0, 0, 0, 0.45)" }}
       >
         <Form 
           form={form}
@@ -387,6 +413,8 @@ const Participants = () => {
         footer={null}
         width={600}
         centered // Center vertically on mobile
+        className="bg-background"
+        maskStyle={{ backgroundColor: "rgba(0, 0, 0, 0.45)" }}
       >
         <Form 
           form={editForm}
