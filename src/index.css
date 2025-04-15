@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -41,7 +40,37 @@
     --travel-error: 0 84% 60%;
   }
  
-  /* ... keep existing code (dark theme variables) */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --background: 222.2 84% 4.9%;
+      --foreground: 210 40% 98%;
+   
+      --card: 222.2 84% 4.9%;
+      --card-foreground: 210 40% 98%;
+   
+      --popover: 222.2 84% 4.9%;
+      --popover-foreground: 210 40% 98%;
+   
+      --primary: 210 40% 98%;
+      --primary-foreground: 222.2 47.4% 11.2%;
+   
+      --secondary: 217.2 32.6% 17.5%;
+      --secondary-foreground: 210 40% 98%;
+   
+      --muted: 217.2 32.6% 17.5%;
+      --muted-foreground: 215 20.2% 65.1%;
+   
+      --accent: 217.2 32.6% 17.5%;
+      --accent-foreground: 210 40% 98%;
+   
+      --destructive: 0 62.8% 30.6%;
+      --destructive-foreground: 210 40% 98%;
+   
+      --border: 217.2 32.6% 17.5%;
+      --input: 217.2 32.6% 17.5%;
+      --ring: 212.7 26.8% 83.9%;
+    }
+  }
 }
  
 @layer base {
@@ -169,4 +198,31 @@
 /* Fix for Ant Design Modal mask */
 .ant-modal-mask {
   background-color: rgba(0, 0, 0, 0.45) !important;
+}
+
+/* Mobile fixes for UI elements */
+@media (max-width: 640px) {
+  /* Fix for datepicker modal on mobile */
+  .ant-picker-dropdown {
+    position: fixed !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    max-width: 90vw !important;
+  }
+  
+  /* Make sure switch component is visible and clickable */
+  .switch-wrapper {
+    margin: 0.5rem 0;
+    display: block;
+    z-index: 20;
+  }
+}
+
+/* Ensure that the switch component is always clickable */
+.switch, 
+[data-state], 
+[role="switch"], 
+[type="checkbox"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
 }

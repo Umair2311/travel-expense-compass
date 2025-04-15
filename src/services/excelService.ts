@@ -1,4 +1,3 @@
-
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import { Travel, Participant, Expense, Settlement, AdvanceContribution } from '@/types/models';
@@ -25,10 +24,10 @@ export const exportToExcel = async (data: ExportData) => {
   // Add travel info worksheet
   const infoSheet = workbook.addWorksheet('Travel Info');
   
-  // Style for headers - dark gray with white text
+  // Style for headers - blue with white text (matching example)
   const headerStyle = {
     font: { bold: true, size: 12, color: { argb: 'FFFFFFFF' } },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: '383838' } } as ExcelJS.FillPattern,
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: '4472C4' } } as ExcelJS.FillPattern,
     border: {
       top: { style: 'thin', color: { argb: 'D0D0D0' } },
       left: { style: 'thin', color: { argb: 'D0D0D0' } },
@@ -49,10 +48,10 @@ export const exportToExcel = async (data: ExportData) => {
     alignment: { vertical: 'middle' }
   };
   
-  // Title style
+  // Title style - light blue background (matching example)
   const titleStyle = {
-    font: { bold: true, size: 16 },
-    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'F2F2F2' } } as ExcelJS.FillPattern,
+    font: { bold: true, size: 16, color: { argb: '000000' } },
+    fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'D9E1F2' } } as ExcelJS.FillPattern,
     alignment: { horizontal: 'center', vertical: 'middle' },
     border: {
       top: { style: 'thin', color: { argb: 'D0D0D0' } },
@@ -60,6 +59,28 @@ export const exportToExcel = async (data: ExportData) => {
       bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
       right: { style: 'thin', color: { argb: 'D0D0D0' } }
     }
+  };
+  
+  // Money style - currency format
+  const moneyStyle = {
+    numFmt: '$#,##0.00',
+    border: {
+      top: { style: 'thin', color: { argb: 'D0D0D0' } },
+      left: { style: 'thin', color: { argb: 'D0D0D0' } },
+      bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
+      right: { style: 'thin', color: { argb: 'D0D0D0' } }
+    }
+  };
+  
+  // Highlight styles - green for positive, red for negative values
+  const positiveMoneyStyle = {
+    ...moneyStyle,
+    font: { color: { argb: '107C41' } }, // Green
+  };
+  
+  const negativeMoneyStyle = {
+    ...moneyStyle,
+    font: { color: { argb: 'C00000' } }, // Red
   };
   
   // Travel Info Section
@@ -91,6 +112,11 @@ export const exportToExcel = async (data: ExportData) => {
     const valueCell = infoSheet.getCell(`B${rowNum}`);
     
     keyCell.font = { bold: true };
+    
+    // Apply money format to Total Expenses
+    if (row[0] === 'Total Expenses') {
+      valueCell.numFmt = '$#,##0.00';
+    }
     
     Object.assign(keyCell, dataCellStyle);
     Object.assign(valueCell, dataCellStyle);
@@ -139,6 +165,13 @@ export const exportToExcel = async (data: ExportData) => {
   // Add expenses worksheet
   const expensesSheet = workbook.addWorksheet('Expenses');
   
+  // Add title row (matching example image)
+  expensesSheet.mergeCells('A1:F1');
+  const expensesTitleCell = expensesSheet.getCell('A1');
+  expensesTitleCell.value = 'Expenses List';
+  Object.assign(expensesTitleCell, titleStyle);
+  expensesTitleCell.font = { bold: true, size: 16 };
+  
   // Add headers
   const expensesHeaders = ['Date', 'Type', 'Amount', 'Paid By', 'Shared With', 'Comment'];
   const expensesHeaderRow = expensesSheet.addRow(expensesHeaders);
@@ -166,15 +199,19 @@ export const exportToExcel = async (data: ExportData) => {
     const row = expensesSheet.addRow([
       format(new Date(expense.date), 'MMM d, yyyy'),
       expense.type + (expense.customType ? ` (${expense.customType})` : ''),
-      expense.amount.toString(),
+      expense.amount,
       paidBy,
       sharedWith,
       expense.comment || ''
     ]);
     
     // Apply data style
-    row.eachCell((cell) => {
+    row.eachCell((cell, colNumber) => {
       Object.assign(cell, dataCellStyle);
+      // Format amount column
+      if (colNumber === 3) {
+        cell.numFmt = '$#,##0.00';
+      }
     });
   });
   
@@ -187,6 +224,12 @@ export const exportToExcel = async (data: ExportData) => {
   
   // Add contributions worksheet
   const contributionsSheet = workbook.addWorksheet('Contributions');
+  
+  // Add title row (matching example image)
+  contributionsSheet.mergeCells('A1:D1');
+  const contribTitleCell = contributionsSheet.getCell('A1');
+  contribTitleCell.value = 'Contributions to Travel Fund';
+  Object.assign(contribTitleCell, titleStyle);
   
   // Add headers
   const contributionsHeaders = ['Date', 'Participant', 'Amount', 'Comment'];
@@ -204,13 +247,17 @@ export const exportToExcel = async (data: ExportData) => {
     const row = contributionsSheet.addRow([
       format(new Date(contribution.date), 'MMM d, yyyy'),
       participantName,
-      contribution.amount.toString(),
+      contribution.amount,
       contribution.comment || 'N/A'
     ]);
     
     // Apply data style
-    row.eachCell((cell) => {
+    row.eachCell((cell, colNumber) => {
       Object.assign(cell, dataCellStyle);
+      // Format amount column
+      if (colNumber === 3) {
+        cell.numFmt = '$#,##0.00';
+      }
     });
   });
   
@@ -223,6 +270,12 @@ export const exportToExcel = async (data: ExportData) => {
   
   // Add settlements worksheet
   const settlementsSheet = workbook.addWorksheet('Settlements');
+  
+  // Add title row (matching example image)
+  settlementsSheet.mergeCells('A1:G1');
+  const settlementsTitleCell = settlementsSheet.getCell('A1');
+  settlementsTitleCell.value = 'Final Settlements';
+  Object.assign(settlementsTitleCell, titleStyle);
   
   // Add headers
   const settlementsHeaders = ['Participant', 'Advance Paid', 'Personally Paid', 'Expense Share', 'Due Amount', 'Refund Amount', 'Donated'];
@@ -237,18 +290,54 @@ export const exportToExcel = async (data: ExportData) => {
   settlements.forEach(settlement => {
     const row = settlementsSheet.addRow([
       settlement.name,
-      settlement.advancePaid.toString(),
-      settlement.personallyPaid.toString(),
-      settlement.expenseShare.toString(),
-      settlement.dueAmount.toString(),
-      settlement.refundAmount.toString(),
+      settlement.advancePaid,
+      settlement.personallyPaid,
+      settlement.expenseShare,
+      settlement.dueAmount,
+      settlement.refundAmount,
       settlement.donated ? 'Yes' : 'No'
     ]);
     
-    // Apply data style
-    row.eachCell((cell) => {
+    // Apply data style and special formatting
+    row.eachCell((cell, colNumber) => {
       Object.assign(cell, dataCellStyle);
+      
+      // Apply money format to relevant columns
+      if (colNumber >= 2 && colNumber <= 6) {
+        if (colNumber === 5 && (settlement.dueAmount || 0) > 0) {
+          // Due amount - negative
+          Object.assign(cell, negativeMoneyStyle);
+        } else if (colNumber === 6 && (settlement.refundAmount || 0) > 0) {
+          // Refund amount - positive
+          Object.assign(cell, positiveMoneyStyle);
+        } else {
+          // Other money columns - neutral
+          Object.assign(cell, moneyStyle);
+        }
+      }
     });
+  });
+  
+  // Add a totals row (matching example)
+  const totalRow = settlementsSheet.addRow([
+    'TOTAL',
+    settlements.reduce((sum, s) => sum + (s.advancePaid || 0), 0),
+    settlements.reduce((sum, s) => sum + (s.personallyPaid || 0), 0),
+    settlements.reduce((sum, s) => sum + (s.expenseShare || 0), 0),
+    settlements.reduce((sum, s) => sum + (s.dueAmount || 0), 0),
+    settlements.reduce((sum, s) => sum + (s.refundAmount || 0), 0),
+    ''
+  ]);
+  
+  // Style the totals row
+  totalRow.eachCell((cell, colNumber) => {
+    cell.font = { bold: true };
+    Object.assign(cell, dataCellStyle);
+    
+    // Format amount columns
+    if (colNumber >= 2 && colNumber <= 6) {
+      cell.numFmt = '$#,##0.00';
+    }
   });
   
   // Auto-fit columns
@@ -261,12 +350,12 @@ export const exportToExcel = async (data: ExportData) => {
   // Add alternating row colors for better readability
   [participantsSheet, expensesSheet, contributionsSheet, settlementsSheet].forEach(sheet => {
     sheet.eachRow((row, rowNumber) => {
-      if (rowNumber > 1 && rowNumber % 2 === 0) {
+      if (rowNumber > 2 && rowNumber % 2 === 0) { // Skip header rows
         row.eachCell(cell => {
           cell.fill = {
             type: 'pattern',
             pattern: 'solid',
-            fgColor: { argb: 'F8F8F8' }
+            fgColor: { argb: 'F2F6FC' } // Light blue to match example
           } as ExcelJS.FillPattern;
         });
       }

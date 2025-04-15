@@ -136,11 +136,28 @@ export const TravelProvider: React.FC<{
   const markRefundAsDonated = (participantId: string, donated: boolean): void => {
     if (!currentTravel) return;
     
-    const settlements = calculateSettlements();
-    const settlement = settlements.find(s => s.participantId === participantId);
+    console.log(`Marking participant ${participantId} donation status as ${donated}`);
     
-    if (settlement) {
+    const donationKey = `donation_${currentTravel.id}_${participantId}`;
+    
+    try {
+      localStorage.setItem(donationKey, donated ? 'true' : 'false');
+      console.log(`Saved donation status to localStorage: ${donationKey} = ${donated}`);
+      
+      const updatedTravel = { ...currentTravel, updated: new Date() };
+      
+      setTravels(prevTravels => 
+        prevTravels.map(travel => 
+          travel.id === currentTravel.id ? updatedTravel : travel
+        )
+      );
+      
+      setCurrentTravel(updatedTravel);
+      
       toast.success(`${donated ? 'Marked' : 'Unmarked'} as donated`);
+    } catch (error) {
+      console.error("Failed to save donation status:", error);
+      toast.error("Failed to update donation status");
     }
   };
 
@@ -560,6 +577,9 @@ export const TravelProvider: React.FC<{
       const dueAmount = participantBalance > 0 ? participantBalance : 0;
       const refundAmount = participantBalance < 0 ? -participantBalance : 0;
       
+      const donationKey = `donation_${currentTravel.id}_${participant.id}`;
+      const donationStatus = localStorage.getItem(donationKey) === 'true';
+      
       return {
         participantId: participant.id,
         name: participant.name,
@@ -568,7 +588,7 @@ export const TravelProvider: React.FC<{
         expenseShare,
         dueAmount,
         refundAmount,
-        donated: false
+        donated: donationStatus
       };
     });
 

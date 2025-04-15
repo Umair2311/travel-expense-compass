@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
@@ -112,7 +111,8 @@ const Summary = () => {
   const handleDonationToggle = (participantId: string, donated: boolean) => {
     markRefundAsDonated(participantId, donated);
     // Update settlements after donation toggle
-    setSettlements(calculateSettlements());
+    const updatedSettlements = calculateSettlements();
+    setSettlements(updatedSettlements);
   };
   
   // Get highest contributor
@@ -341,6 +341,7 @@ const Summary = () => {
                                 onCheckedChange={(checked) => 
                                   handleDonationToggle(settlement.participantId, checked)
                                 }
+                                id={`donate-switch-${settlement.participantId}`}
                               />
                               {settlement.donated && (
                                 <Gift className="h-4 w-4 text-travel-accent" />
