@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
@@ -47,7 +46,6 @@ const Summary = () => {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [totalExpenses, setTotalExpenses] = useState(0);
   
-  // Load data when component mounts or currentTravel changes
   useEffect(() => {
     if (currentTravel) {
       console.log("Loading Summary data for travel:", currentTravel);
@@ -61,7 +59,6 @@ const Summary = () => {
     }
   }, [currentTravel, calculateSettlements, getTotalExpenses]);
   
-  // Redirect if no current travel
   useEffect(() => {
     if (!currentTravel) {
       console.log("No current travel, redirecting to home");
@@ -77,7 +74,6 @@ const Summary = () => {
   const totalRefund = settlements.reduce((sum, s) => sum + (s.refundAmount || 0), 0);
   const totalDonated = settlements.reduce((sum, s) => s.donated ? sum + (s.refundAmount || 0) : sum, 0);
   
-  // Ensure we have valid numbers for display
   const displayTotalExpenses = isNaN(totalExpenses) ? 0 : totalExpenses;
   const displayTotalDue = isNaN(totalDue) ? 0 : totalDue;
   const displayTotalRefund = isNaN(totalRefund - totalDonated) ? 0 : (totalRefund - totalDonated);
@@ -111,12 +107,10 @@ const Summary = () => {
   
   const handleDonationToggle = (participantId: string, donated: boolean) => {
     markRefundAsDonated(participantId, donated);
-    // Update settlements after donation toggle
     const updatedSettlements = calculateSettlements();
     setSettlements(updatedSettlements);
   };
   
-  // Get highest contributor
   const highestContributor = settlements.length > 0 ? 
     [...settlements].sort((a, b) => 
       ((b.advancePaid || 0) + (b.personallyPaid || 0)) - ((a.advancePaid || 0) + (a.personallyPaid || 0))
@@ -336,14 +330,13 @@ const Summary = () => {
                         </TableCell>
                         <TableCell>
                           {(settlement.refundAmount || 0) > 0 ? (
-                            <div className="flex items-center gap-2 relative z-20">
+                            <div className="flex items-center gap-2">
                               <Switch
                                 checked={settlement.donated || false}
                                 onCheckedChange={(checked) => 
                                   handleDonationToggle(settlement.participantId, checked)
                                 }
                                 id={`donate-switch-${settlement.participantId}`}
-                                className="z-30 pointer-events-auto"
                               />
                               {settlement.donated && (
                                 <Gift className="h-4 w-4 text-travel-accent" />

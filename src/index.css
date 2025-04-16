@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -215,16 +214,20 @@
   .switch-wrapper {
     margin: 0.5rem 0;
     display: block;
-    z-index: 20;
   }
 }
 
-/* Ensure that the switch component is always clickable */
-.switch, 
-[data-state], 
-[role="switch"], 
-[type="checkbox"] {
+/* Ensure summary page switches are clickable */
+.ant-table-row .flex.items-center.gap-2 {
+  position: relative;
+}
+
+#donate-switch {
   pointer-events: auto !important;
   cursor: pointer !important;
-  z-index: 30 !important;
+}
+
+[id^="donate-switch-"] {
+  pointer-events: auto !important;
+  cursor: pointer !important;
 }
