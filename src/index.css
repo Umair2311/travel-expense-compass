@@ -5,7 +5,7 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%; // Pure white background
+    --background: 0 0% 100%; /* Pure white background */
     --foreground: 222.2 84% 4.9%;
 
     --card: 0 0% 100%;
@@ -43,7 +43,7 @@
  
   @media (prefers-color-scheme: dark) {
     :root {
-      --background: 0 0% 100%; // Ensure white background in dark mode as well
+      --background: 0 0% 100%; /* Ensure white background in dark mode as well */
       --foreground: 210 40% 98%;
    
       --card: 0 0% 100%;
@@ -226,4 +226,5 @@
 [type="checkbox"] {
   pointer-events: auto !important;
   cursor: pointer !important;
+  z-index: 30 !important;
 }

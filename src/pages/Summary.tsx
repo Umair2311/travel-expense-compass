@@ -343,7 +343,7 @@ const Summary = () => {
                                   handleDonationToggle(settlement.participantId, checked)
                                 }
                                 id={`donate-switch-${settlement.participantId}`}
-                                className="z-20 pointer-events-auto"
+                                className="z-30 pointer-events-auto"
                               />
                               {settlement.donated && (
                                 <Gift className="h-4 w-4 text-travel-accent" />
