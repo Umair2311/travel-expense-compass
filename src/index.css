@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -114,7 +115,6 @@
     padding: 3px !important;
   }
   
-  /* Hide second panel on mobile */
   .ant-picker-dropdown.responsive-datepicker-popup .ant-picker-panel:nth-child(2) {
     display: none !important;
   }
