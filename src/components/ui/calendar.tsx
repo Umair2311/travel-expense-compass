@@ -32,7 +32,8 @@ export function Calendar({
 
   // For simplicity, requiring parent to provide two selected/onSelect for mobile split
   if (useMobileSplitCal) {
-    const dateRange = selected as DateRange || {};
+    // Ensure selected is a proper DateRange or default to empty object with correct typing
+    const dateRange = (selected as DateRange) || { from: undefined, to: undefined };
     
     const onSelectRange = (updater: Partial<{ from: Date | undefined; to: Date | undefined }>) => {
       onSelect?.({ ...dateRange, ...updater } as DateRange);
@@ -45,7 +46,7 @@ export function Calendar({
           <DayPicker
             mode="single"
             selected={dateRange.from}
-            onSelect={(date) => onSelectRange({ from: date })}
+            onSelect={(date) => onSelectRange({ from: date as Date })}
             showOutsideDays={showOutsideDays}
             className={cn("p-3 pointer-events-auto")}
             classNames={{
@@ -94,7 +95,7 @@ export function Calendar({
           <DayPicker
             mode="single"
             selected={dateRange.to}
-            onSelect={(date) => onSelectRange({ to: date })}
+            onSelect={(date) => onSelectRange({ to: date as Date })}
             showOutsideDays={showOutsideDays}
             className={cn("p-3 pointer-events-auto")}
             classNames={{
@@ -142,11 +143,9 @@ export function Calendar({
     );
   }
 
+  // For regular (non-split) calendar view
   return (
     <DayPicker
-      mode={mode}
-      selected={selected as (DateRange | Date)}
-      onSelect={onSelect}
       showOutsideDays={showOutsideDays}
       className={cn("p-3 pointer-events-auto bg-background", className)}
       classNames={{
@@ -188,6 +187,9 @@ export function Calendar({
         IconLeft: ({ ..._props }) => <ChevronLeft className="h-4 w-4" />,
         IconRight: ({ ..._props }) => <ChevronRight className="h-4 w-4" />,
       }}
+      mode={mode}
+      selected={selected as (Date | DateRange)}
+      onSelect={onSelect}
       {...props}
     />
   );
