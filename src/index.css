@@ -40,38 +40,6 @@
     --travel-accent: 337 80% 56%;
     --travel-error: 0 84% 60%;
   }
- 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: 0 0% 100%; /* Ensure white background in dark mode as well */
-      --foreground: 210 40% 98%;
-   
-      --card: 0 0% 100%;
-      --card-foreground: 210 40% 98%;
-   
-      --popover: 0 0% 100%;
-      --popover-foreground: 210 40% 98%;
-   
-      --primary: 210 40% 98%;
-      --primary-foreground: 222.2 47.4% 11.2%;
-   
-      --secondary: 0 0% 100%;
-      --secondary-foreground: 210 40% 98%;
-   
-      --muted: 0 0% 100%;
-      --muted-foreground: 215 20.2% 65.1%;
-   
-      --accent: 0 0% 100%;
-      --accent-foreground: 210 40% 98%;
-   
-      --destructive: 0 62.8% 30.6%;
-      --destructive-foreground: 210 40% 98%;
-   
-      --border: 0 0% 100%;
-      --input: 0 0% 100%;
-      --ring: 212.7 26.8% 83.9%;
-    }
-  }
 }
  
 @layer base {
@@ -120,20 +88,20 @@
   }
 }
 
-/* Ensure proper event handling for all interactive elements */
-.rdp,
-.rdp-months,
-.rdp-table,
-.rdp-cell,
+/* Fix for interactive elements */
 .rdp-button,
 .ant-picker-dropdown,
 .ant-popover-inner,
 .ant-modal-content,
-.ant-dropdown {
+.ant-dropdown,
+.rdp,
+.rdp-months,
+.rdp-table,
+.rdp-cell {
   pointer-events: auto !important;
 }
 
-/* Fix modals and popovers to ensure solid background and proper z-index */
+/* Fix backgrounds and modals */
 .ant-modal-content,
 .ant-popover-inner,
 .ant-dropdown,
@@ -145,16 +113,7 @@
               0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* Fix z-index for all popups and modals to ensure proper stacking */
-.ant-dropdown, 
-.ant-picker-dropdown, 
-.ant-popover,
-.ant-modal-mask,
-.ant-modal-wrap {
-  z-index: 1001 !important;
-}
-
-/* Make sure that all app backgrounds are solid */
+/* Ensure solid backgrounds */
 .bg-background,
 .sidebar-panel,
 .sidebar-panel-inner,
@@ -162,7 +121,7 @@
   background-color: #ffffff !important;
 }
 
-/* Fix modal mask */
+/* Modal mask */
 .ant-modal-mask {
   background-color: rgba(0, 0, 0, 0.45) !important;
 }
@@ -182,24 +141,18 @@
   }
 }
 
-/* Fix for Summary page donate switches */
-.ant-table-row .switch-container {
+/* Fix for donation switches */
+.switch-container {
   position: relative;
   z-index: 1;
 }
 
-/* Ensure switches in tables are clickable */
 table .switch,
 table [data-state="checked"],
-table [data-state="unchecked"] {
-  pointer-events: auto !important;
-  cursor: pointer !important;
-  z-index: 2;
-}
-
-/* Specific fix for donation switches in summary table */
+table [data-state="unchecked"],
 [id^="donate-switch-"] {
+  position: relative;
+  z-index: 2;
   pointer-events: auto !important;
   cursor: pointer !important;
-  z-index: 2;
 }
