@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
 import { 
@@ -28,18 +28,34 @@ import {
   Download,
   Upload,
   Plus,
-  LogOut
+  LogOut,
+  Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog';
 
 const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
-  const { currentTravel, travels, setCurrentTravel, exportToExcel, exportToJSON, importFromJSON } = useTravel();
+  const { currentTravel, travels, setCurrentTravel, exportToExcel, exportToJSON, importFromJSON, deleteTravel } = useTravel();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
+
+  // State for delete dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedTravelForDelete, setSelectedTravelForDelete] = useState<string | null>(null);
 
   // Handle file import
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -69,6 +85,29 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
       toast(`${travel.name} has been loaded.`);
       navigate('/');
     }
+  };
+
+  // Handle delete trip actions
+  const openDeleteDialog = (travelId: string) => {
+    setSelectedTravelForDelete(travelId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (selectedTravelForDelete) {
+      const travel = travels.find(t => t.id === selectedTravelForDelete);
+      deleteTravel(selectedTravelForDelete);
+      setDeleteDialogOpen(false);
+      setSelectedTravelForDelete(null);
+      setCurrentTravel(null);
+      navigate('/');
+      toast.success(`Trip "${travel?.name ?? ''}" deleted successfully`);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
+    setSelectedTravelForDelete(null);
   };
 
   return (
@@ -225,14 +264,44 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
                   <SidebarMenu>
                     {travels.map(travel => (
                       <SidebarMenuItem key={travel.id}>
-                        <SidebarMenuButton 
-                          isActive={currentTravel?.id === travel.id}
-                          onClick={() => handleTravelSelect(travel.id)}
-                          tooltip={travel.name}
-                        >
-                          <PlaneTakeoff className="h-4 w-4" />
-                          <span>{travel.name}</span>
-                        </SidebarMenuButton>
+                        <div className="flex items-center justify-between w-full">
+                          <SidebarMenuButton 
+                            isActive={currentTravel?.id === travel.id}
+                            onClick={() => handleTravelSelect(travel.id)}
+                            tooltip={travel.name}
+                          >
+                            <PlaneTakeoff className="h-4 w-4" />
+                            <span>{travel.name}</span>
+                          </SidebarMenuButton>
+                          <AlertDialog open={deleteDialogOpen && selectedTravelForDelete === travel.id} onOpenChange={(open) => { if (!open) handleCancelDelete(); }}>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                className="ml-1 px-2 py-1 h-7 w-7"
+                                title="Delete Trip"
+                                onClick={e => { e.stopPropagation(); openDeleteDialog(travel.id); }}
+                              >
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Are you sure you want to delete "{travel.name}"?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This action cannot be undone. All participants, expenses, and data for this trip will be permanently deleted.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel onClick={handleCancelDelete}>
+                                  Cancel
+                                </AlertDialogCancel>
+                                <AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/80" onClick={handleConfirmDelete}>
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
                       </SidebarMenuItem>
                     ))}
                   </SidebarMenu>
@@ -277,3 +346,4 @@ const LeftSideMenu = ({ children }: { children: React.ReactNode }) => {
 };
 
 export default LeftSideMenu;
+
