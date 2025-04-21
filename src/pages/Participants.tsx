@@ -1,46 +1,68 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, Button, Input, Modal, Form, DatePicker, Space, Typography, List, Tag, Popconfirm, InputNumber } from 'antd';
-import { PlusOutlined, DeleteOutlined, EditOutlined, CalendarOutlined } from '@ant-design/icons';
 import { useTravel } from '@/context/TravelContext';
 import Layout from '@/components/Layout';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent } from '@/components/ui/card';
+import { Calendar } from '@/components/ui/calendar';
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { 
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Participant, ParticipationPeriod } from '@/types/models';
-import dayjs from 'dayjs';
-
-const { RangePicker } = DatePicker;
-const { Title, Text } = Typography;
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
+import { CalendarIcon, Pencil, Trash, Plus } from 'lucide-react';
 
 const Participants = () => {
   const { currentTravel, addParticipant, updateParticipant, deleteParticipant, validateParticipationPeriod } = useTravel();
   const navigate = useNavigate();
-  const [form] = Form.useForm();
-  const [editForm] = Form.useForm();
   
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingParticipant, setEditingParticipant] = useState<Participant | null>(null);
   const [participationPeriods, setParticipationPeriods] = useState<ParticipationPeriod[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
   
+  // Form fields
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [initialContribution, setInitialContribution] = useState('');
+  const [nameError, setNameError] = useState('');
+  
   // Load participants from currentTravel whenever it changes
   useEffect(() => {
     if (currentTravel) {
-      console.log("Current Travel in Participants component:", currentTravel);
-      console.log("Participants count:", currentTravel.participants ? currentTravel.participants.length : 0);
       setParticipants(currentTravel.participants || []);
     }
   }, [currentTravel]);
   
-  // Log for debugging
-  useEffect(() => {
-    console.log("Participants state updated:", participants);
-  }, [participants]);
-  
   // Redirect if no current travel
   useEffect(() => {
     if (!currentTravel) {
-      console.log("No current travel, redirecting to home");
       navigate('/');
     }
   }, [currentTravel, navigate]);
@@ -49,52 +71,54 @@ const Participants = () => {
     return null;
   }
   
-  const openAddModal = () => {
-    form.resetFields();
+  const resetForm = () => {
+    setName('');
+    setEmail('');
+    setInitialContribution('');
+    setNameError('');
     setParticipationPeriods([{
       id: Date.now().toString(),
       startDate: currentTravel.startDate,
       endDate: currentTravel.endDate,
     }]);
-    setIsAddModalOpen(true);
   };
   
-  const handleAddSubmit = (values: any) => {
-    // Convert periods from form
-    const periods: ParticipationPeriod[] = participationPeriods.map((period, index) => {
-      const dateRange = values[`period_${index}`];
-      return {
-        id: period.id || Date.now().toString() + index,
-        startDate: dateRange[0].toDate(),
-        endDate: dateRange[1].toDate(),
-      };
-    });
+  const openAddDialog = () => {
+    resetForm();
+    setIsAddDialogOpen(true);
+  };
+  
+  const handleAddSubmit = () => {
+    if (!name) {
+      setNameError('Please enter a name');
+      return;
+    }
     
-    // Ensure initialContribution is a number or undefined
-    const initialContribution = values.initialContribution 
-      ? parseFloat(values.initialContribution) 
-      : undefined;
+    // Validate all periods
+    for (const period of participationPeriods) {
+      if (!validateParticipationPeriod(period)) {
+        return;
+      }
+    }
     
-    console.log("Adding participant with values:", { 
-      name: values.name, 
-      email: values.email || undefined, 
-      periods,
-      initialContribution
-    });
+    // Convert initial contribution
+    const contribution = initialContribution ? parseFloat(initialContribution) : undefined;
     
     addParticipant(
-      values.name, 
-      values.email || undefined, 
-      periods,
-      initialContribution
+      name,
+      email || undefined,
+      participationPeriods,
+      contribution
     );
     
-    setIsAddModalOpen(false);
+    setIsAddDialogOpen(false);
+    resetForm();
   };
   
-  const openEditModal = (participant: Participant) => {
-    console.log("Opening edit modal for participant:", participant);
+  const openEditDialog = (participant: Participant) => {
     setEditingParticipant(participant);
+    setName(participant.name);
+    setEmail(participant.email || '');
     
     // Set the periods
     setParticipationPeriods(
@@ -105,49 +129,33 @@ const Participants = () => {
       }))
     );
     
-    // Set form values
-    const formValues: any = {
-      name: participant.name,
-      email: participant.email || '',
-    };
-    
-    // Set date ranges
-    participant.participationPeriods.forEach((period, index) => {
-      formValues[`period_${index}`] = [
-        dayjs(period.startDate),
-        dayjs(period.endDate)
-      ];
-    });
-    
-    editForm.setFieldsValue(formValues);
-    setIsEditModalOpen(true);
+    setIsEditDialogOpen(true);
   };
   
-  const handleEditSubmit = (values: any) => {
-    if (!editingParticipant) return;
+  const handleEditSubmit = () => {
+    if (!editingParticipant || !name) {
+      setNameError('Please enter a name');
+      return;
+    }
     
-    console.log("Editing participant with values:", values);
-    
-    // Convert periods from form
-    const periods = participationPeriods.map((period, index) => {
-      const dateRange = values[`period_${index}`];
-      return {
-        id: period.id,
-        startDate: dateRange[0].toDate(),
-        endDate: dateRange[1].toDate(),
-      };
-    });
+    // Validate all periods
+    for (const period of participationPeriods) {
+      if (!validateParticipationPeriod(period)) {
+        return;
+      }
+    }
     
     const updatedParticipant: Participant = {
       ...editingParticipant,
-      name: values.name,
-      email: values.email || undefined,
-      participationPeriods: periods,
+      name,
+      email: email || undefined,
+      participationPeriods,
     };
     
-    console.log("Updated participant object:", updatedParticipant);
     updateParticipant(updatedParticipant);
-    setIsEditModalOpen(false);
+    setIsEditDialogOpen(false);
+    resetForm();
+    setEditingParticipant(null);
   };
   
   const addPeriod = () => {
@@ -167,338 +175,395 @@ const Participants = () => {
     const newPeriods = [...participationPeriods];
     newPeriods.splice(index, 1);
     setParticipationPeriods(newPeriods);
-    
-    // Also remove from form
-    if (isEditModalOpen) {
-      const formValues = editForm.getFieldsValue();
-      delete formValues[`period_${index}`];
-      editForm.setFieldsValue(formValues);
-    } else {
-      const formValues = form.getFieldsValue();
-      delete formValues[`period_${index}`];
-      form.setFieldsValue(formValues);
-    }
   };
-
-  // Function to validate if date range is within travel period
-  const isDateRangeValid = (dates: any) => {
-    if (!dates || !dates[0] || !dates[1]) return true;
-    
-    const startDate = dates[0].toDate();
-    const endDate = dates[1].toDate();
-    
-    return validateParticipationPeriod({
-      startDate,
-      endDate
-    });
+  
+  const updatePeriodStartDate = (index: number, date: Date) => {
+    const newPeriods = [...participationPeriods];
+    newPeriods[index] = {
+      ...newPeriods[index],
+      startDate: date
+    };
+    setParticipationPeriods(newPeriods);
+  };
+  
+  const updatePeriodEndDate = (index: number, date: Date) => {
+    const newPeriods = [...participationPeriods];
+    newPeriods[index] = {
+      ...newPeriods[index],
+      endDate: date
+    };
+    setParticipationPeriods(newPeriods);
   };
 
   // Disable dates outside of travel period
-  const disabledDate = (current: dayjs.Dayjs) => {
+  const disabledDate = (current: Date) => {
     if (!currentTravel) return false;
     
     // Prevent dates before travel start or after travel end
-    return current.isBefore(dayjs(currentTravel.startDate), 'day') || 
-           current.isAfter(dayjs(currentTravel.endDate), 'day');
+    return current < currentTravel.startDate || current > currentTravel.endDate;
   };
-  
-  // Make sure we're displaying the correct participant list from current travel
-  const displayParticipants = currentTravel.participants || [];
-  
-  console.log("Rendering participant list with:", displayParticipants);
   
   return (
     <Layout>
       <div className="max-w-4xl mx-auto">
         <div className="flex justify-between items-center mb-6">
-          <Title level={3}>Participants ({displayParticipants.length})</Title>
-          <Button
-            type="primary" 
-            icon={<PlusOutlined />}
-            onClick={openAddModal}
-          >
+          <h1 className="text-2xl font-bold">Participants ({participants.length})</h1>
+          <Button onClick={openAddDialog}>
+            <Plus className="mr-2 h-4 w-4" />
             Add Participant
           </Button>
         </div>
         
         {/* Participant List */}
-        {displayParticipants.length === 0 ? (
+        {participants.length === 0 ? (
           <Card>
-            <div className="py-10 text-center">
-              <Text type="secondary" className="block mb-4">No participants added yet</Text>
-              <Button 
-                type="primary" 
-                icon={<PlusOutlined />}
-                onClick={openAddModal}
-              >
+            <CardContent className="pt-6 text-center">
+              <p className="text-muted-foreground mb-4">No participants added yet</p>
+              <Button onClick={openAddDialog}>
+                <Plus className="mr-2 h-4 w-4" />
                 Add your first participant
               </Button>
-            </div>
+            </CardContent>
           </Card>
         ) : (
-          <List
-            grid={{ 
-              gutter: 16, 
-              xs: 1, 
-              sm: 1, 
-              md: 2, 
-              lg: 3, 
-              xl: 3, 
-              xxl: 3 
-            }}
-            dataSource={displayParticipants}
-            renderItem={(participant) => (
-              <List.Item>
-                <Card
-                  title={participant.name}
-                  extra={
-                    <Space>
-                      <Button 
-                        icon={<EditOutlined />} 
-                        size="small"
-                        onClick={() => openEditModal(participant)}
-                      />
-                      <Popconfirm
-                        title="Remove participant"
-                        description="Are you sure you want to remove this participant?"
-                        onConfirm={() => deleteParticipant(participant.id)}
-                        okText="Yes"
-                        cancelText="No"
-                      >
-                        <Button 
-                          icon={<DeleteOutlined />} 
-                          size="small"
-                        />
-                      </Popconfirm>
-                    </Space>
-                  }
-                >
-                  {participant.email && (
-                    <p className="text-gray-500 mb-3">{participant.email}</p>
-                  )}
-                  
-                  <div className="mb-2">
-                    <Text className="flex items-center gap-1 mb-2">
-                      <CalendarOutlined /> Participation Periods:
-                    </Text>
-                    <Space direction="vertical" className="w-full">
-                      {participant.participationPeriods.map((period, index) => (
-                        <Tag key={index} className="w-full block text-xs px-3 py-1">
-                          {dayjs(period.startDate).format("MMM D")} - {dayjs(period.endDate).format("MMM D, YYYY")}
-                        </Tag>
-                      ))}
-                    </Space>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {participants.map((participant) => (
+              <Card key={participant.id}>
+                <CardContent className="pt-6">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-medium text-lg">{participant.name}</h3>
+                      {participant.email && (
+                        <p className="text-muted-foreground text-sm">{participant.email}</p>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => openEditDialog(participant)}>
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button size="sm" variant="ghost">
+                            <Trash className="h-4 w-4" />
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Participant</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete this participant? This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction 
+                              onClick={() => deleteParticipant(participant.id)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   </div>
-                </Card>
-              </List.Item>
-            )}
-          />
+                  
+                  <div>
+                    <h4 className="text-sm font-medium mb-2">Participation Periods:</h4>
+                    {participant.participationPeriods.map((period, index) => (
+                      <div key={period.id} className="text-sm p-2 bg-muted rounded-md mb-2">
+                        {format(new Date(period.startDate), "MMM d")} - {format(new Date(period.endDate), "MMM d, yyyy")}
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         )}
       </div>
       
-      {/* Add Participant Modal */}
-      <Modal
-        title="Add Participant"
-        open={isAddModalOpen}
-        onCancel={() => setIsAddModalOpen(false)}
-        footer={null}
-        width={600}
-        centered // Center vertically on mobile
-        className="bg-background"
-        maskStyle={{ backgroundColor: "rgba(0, 0, 0, 0.45)" }}
-      >
-        <Form 
-          form={form}
-          layout="vertical"
-          onFinish={handleAddSubmit}
-          requiredMark={false}
-        >
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, message: 'Please enter a name' }]}
-          >
-            <Input placeholder="John Doe" />
-          </Form.Item>
+      {/* Add Participant Dialog */}
+      <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Add Participant</DialogTitle>
+            <DialogDescription>
+              Add a new participant to your travel
+            </DialogDescription>
+          </DialogHeader>
           
-          <Form.Item
-            name="email"
-            label="Email (optional)"
-          >
-            <Input placeholder="john@example.com" type="email" />
-          </Form.Item>
-          
-          <Form.Item
-            name="initialContribution"
-            label="Initial Contribution (optional)"
-          >
-            <InputNumber 
-              placeholder="0.00" 
-              precision={2}
-              min={0}
-              addonBefore="$"
-              style={{ width: '100%' }}
-            />
-          </Form.Item>
-          
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <Text strong>Participation Periods</Text>
-              <Button 
-                type="link" 
-                onClick={addPeriod}
-                icon={<PlusOutlined />}
-                size="small"
-              >
-                Add Period
-              </Button>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Name</Label>
+              <Input 
+                id="name" 
+                value={name} 
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setNameError('');
+                }}
+                className={nameError ? 'border-red-500' : ''}
+              />
+              {nameError && (
+                <p className="text-sm text-red-500">{nameError}</p>
+              )}
             </div>
             
-            {participationPeriods.map((period, index) => (
-              <div key={period.id} className="mb-4 p-3 border rounded relative">
-                <Form.Item
-                  name={`period_${index}`}
-                  label={`Period ${index + 1}`}
-                  initialValue={[dayjs(period.startDate), dayjs(period.endDate)]}
-                  rules={[
-                    { required: true, message: 'Please select a date range' },
-                    {
-                      validator: (_, value) => {
-                        if (value && !isDateRangeValid(value)) {
-                          return Promise.reject('Date range must be within travel period');
-                        }
-                        return Promise.resolve();
-                      }
-                    }
-                  ]}
+            <div className="space-y-2">
+              <Label htmlFor="email">Email (optional)</Label>
+              <Input 
+                id="email" 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="initialContribution">Initial Contribution (optional)</Label>
+              <Input 
+                id="initialContribution" 
+                type="number" 
+                step="0.01"
+                min="0"
+                value={initialContribution} 
+                onChange={(e) => setInitialContribution(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label>Participation Periods</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={addPeriod}
                 >
-                  <RangePicker 
-                    className="w-full" 
-                    format="YYYY-MM-DD"
-                    disabledDate={disabledDate}
-                    popupClassName="responsive-datepicker-popup" // Add this to target it with CSS
-                  />
-                </Form.Item>
-                
-                {participationPeriods.length > 1 && (
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => removePeriod(index)}
-                    className="absolute top-2 right-2"
-                    size="small"
-                  />
-                )}
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Period
+                </Button>
               </div>
-            ))}
+              
+              {participationPeriods.map((period, index) => (
+                <div key={period.id} className="p-3 border rounded-md relative">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(new Date(period.startDate), "PPP")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={new Date(period.startDate)}
+                            onSelect={(date) => date && updatePeriodStartDate(index, date)}
+                            disabled={(date) => disabledDate(date) || date > new Date(period.endDate)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>End Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(new Date(period.endDate), "PPP")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={new Date(period.endDate)}
+                            onSelect={(date) => date && updatePeriodEndDate(index, date)}
+                            disabled={(date) => disabledDate(date) || date < new Date(period.startDate)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  
+                  {participationPeriods.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => removePeriod(index)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
           
-          <div className="flex justify-end gap-2">
-            <Button onClick={() => setIsAddModalOpen(false)}>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsAddDialogOpen(false)}>
               Cancel
             </Button>
-            <Button type="primary" htmlType="submit">
+            <Button type="button" onClick={handleAddSubmit}>
               Add Participant
             </Button>
-          </div>
-        </Form>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
-      {/* Edit Participant Modal */}
-      <Modal
-        title="Edit Participant"
-        open={isEditModalOpen}
-        onCancel={() => setIsEditModalOpen(false)}
-        footer={null}
-        width={600}
-        centered // Center vertically on mobile
-        className="bg-background"
-        maskStyle={{ backgroundColor: "rgba(0, 0, 0, 0.45)" }}
-      >
-        <Form 
-          form={editForm}
-          layout="vertical"
-          onFinish={handleEditSubmit}
-          requiredMark={false}
-        >
-          <Form.Item
-            name="name"
-            label="Name"
-            rules={[{ required: true, message: 'Please enter a name' }]}
-          >
-            <Input placeholder="John Doe" />
-          </Form.Item>
+      {/* Edit Participant Dialog */}
+      <Dialog open={isEditDialogOpen} onOpenChange={(open) => {
+        setIsEditDialogOpen(open);
+        if (!open) setEditingParticipant(null);
+      }}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <DialogTitle>Edit Participant</DialogTitle>
+            <DialogDescription>
+              Update participant information
+            </DialogDescription>
+          </DialogHeader>
           
-          <Form.Item
-            name="email"
-            label="Email (optional)"
-          >
-            <Input placeholder="john@example.com" type="email" />
-          </Form.Item>
-          
-          <div className="mb-4">
-            <div className="flex justify-between items-center mb-2">
-              <Text strong>Participation Periods</Text>
-              <Button 
-                type="link" 
-                onClick={addPeriod}
-                icon={<PlusOutlined />}
-                size="small"
-              >
-                Add Period
-              </Button>
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Name</Label>
+              <Input 
+                id="edit-name" 
+                value={name} 
+                onChange={(e) => {
+                  setName(e.target.value);
+                  setNameError('');
+                }}
+                className={nameError ? 'border-red-500' : ''}
+              />
+              {nameError && (
+                <p className="text-sm text-red-500">{nameError}</p>
+              )}
             </div>
             
-            {participationPeriods.map((period, index) => (
-              <div key={period.id} className="mb-4 p-3 border rounded relative">
-                <Form.Item
-                  name={`period_${index}`}
-                  label={`Period ${index + 1}`}
-                  rules={[
-                    { required: true, message: 'Please select a date range' },
-                    {
-                      validator: (_, value) => {
-                        if (value && !isDateRangeValid(value)) {
-                          return Promise.reject('Date range must be within travel period');
-                        }
-                        return Promise.resolve();
-                      }
-                    }
-                  ]}
+            <div className="space-y-2">
+              <Label htmlFor="edit-email">Email (optional)</Label>
+              <Input 
+                id="edit-email" 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+              />
+            </div>
+            
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <Label>Participation Periods</Label>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  size="sm"
+                  onClick={addPeriod}
                 >
-                  <RangePicker 
-                    className="w-full" 
-                    format="YYYY-MM-DD"
-                    disabledDate={disabledDate}
-                    popupClassName="responsive-datepicker-popup" // Add this to target it with CSS
-                  />
-                </Form.Item>
-                
-                {participationPeriods.length > 1 && (
-                  <Button
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={() => removePeriod(index)}
-                    className="absolute top-2 right-2"
-                    size="small"
-                  />
-                )}
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Period
+                </Button>
               </div>
-            ))}
+              
+              {participationPeriods.map((period, index) => (
+                <div key={period.id} className="p-3 border rounded-md relative">
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label>Start Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(new Date(period.startDate), "PPP")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={new Date(period.startDate)}
+                            onSelect={(date) => date && updatePeriodStartDate(index, date)}
+                            disabled={(date) => disabledDate(date) || date > new Date(period.endDate)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label>End Date</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "w-full justify-start text-left font-normal"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {format(new Date(period.endDate), "PPP")}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={new Date(period.endDate)}
+                            onSelect={(date) => date && updatePeriodEndDate(index, date)}
+                            disabled={(date) => disabledDate(date) || date < new Date(period.startDate)}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </div>
+                  
+                  {participationPeriods.length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute top-2 right-2"
+                      onClick={() => removePeriod(index)}
+                    >
+                      <Trash className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
           
-          <div className="flex justify-end gap-2">
-            <Button onClick={() => setIsEditModalOpen(false)}>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
             </Button>
-            <Button type="primary" htmlType="submit">
+            <Button type="button" onClick={handleEditSubmit}>
               Save Changes
             </Button>
-          </div>
-        </Form>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

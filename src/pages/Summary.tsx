@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
@@ -13,7 +14,6 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
-import { Separator } from '@/components/ui/separator';
 import { 
   FileSpreadsheet, 
   PiggyBank, 
@@ -27,6 +27,7 @@ import {
   Medal,
   AlertTriangle
 } from 'lucide-react';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Settlement } from '@/types/models';
 
 const Summary = () => {
@@ -208,148 +209,150 @@ const Summary = () => {
                 <p>No participants or expenses to calculate settlements</p>
               </div>
             ) : (
-              <div className="rounded-md border overflow-x-auto max-w-full">
-                <div className="min-w-[700px] md:min-w-0">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead 
-                          onClick={() => handleSort('name')}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex items-center gap-1">
-                            Participant
-                            {sortBy === 'name' && (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3 w-3" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3" />
-                              )
-                            )}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          onClick={() => handleSort('advancePaid')}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex items-center gap-1">
-                            Advance Paid
-                            {sortBy === 'advancePaid' && (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3 w-3" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3" />
-                              )
-                            )}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          onClick={() => handleSort('personallyPaid')}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex items-center gap-1">
-                            Paid Personally
-                            {sortBy === 'personallyPaid' && (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3 w-3" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3" />
-                              )
-                            )}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          onClick={() => handleSort('expenseShare')}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex items-center gap-1">
-                            Expense Share
-                            {sortBy === 'expenseShare' && (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3 w-3" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3" />
-                              )
-                            )}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          onClick={() => handleSort('dueAmount')}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex items-center gap-1">
-                            Due Amount
-                            {sortBy === 'dueAmount' && (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3 w-3" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3" />
-                              )
-                            )}
-                          </div>
-                        </TableHead>
-                        <TableHead 
-                          onClick={() => handleSort('refundAmount')}
-                          className="cursor-pointer"
-                        >
-                          <div className="flex items-center gap-1">
-                            Refund Amount
-                            {sortBy === 'refundAmount' && (
-                              sortDirection === 'asc' ? (
-                                <ArrowUp className="h-3 w-3" />
-                              ) : (
-                                <ArrowDown className="h-3 w-3" />
-                              )
-                            )}
-                          </div>
-                        </TableHead>
-                        <TableHead>Donate</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {sortedSettlements.map((settlement) => (
-                        <TableRow key={settlement.participantId}>
-                          <TableCell className="font-medium">
-                            {settlement.name}
-                          </TableCell>
-                          <TableCell>
-                            ${(settlement.advancePaid || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            ${(settlement.personallyPaid || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell>
-                            ${(settlement.expenseShare || 0).toFixed(2)}
-                          </TableCell>
-                          <TableCell className={(settlement.dueAmount || 0) > 0 ? 'text-travel-error font-medium' : ''}>
-                            {(settlement.dueAmount || 0) > 0 ? `$${(settlement.dueAmount || 0).toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell className={(settlement.refundAmount || 0) > 0 ? 'text-travel-secondary font-medium' : ''}>
-                            {(settlement.refundAmount || 0) > 0 ? `$${(settlement.refundAmount || 0).toFixed(2)}` : '-'}
-                          </TableCell>
-                          <TableCell>
-                            {(settlement.refundAmount || 0) > 0 ? (
-                              <div className="switch-container">
-                                <Switch
-                                  checked={settlement.donated || false}
-                                  onCheckedChange={(checked) => 
-                                    handleDonationToggle(settlement.participantId, checked)
-                                  }
-                                  id={`donate-switch-${settlement.participantId}`}
-                                />
-                                {settlement.donated && (
-                                  <Gift className="h-4 w-4 text-travel-accent ml-2" />
-                                )}
-                              </div>
-                            ) : (
-                              '-'
-                            )}
-                          </TableCell>
+              <div className="border rounded-md">
+                <ScrollArea className="w-full overflow-auto">
+                  <div className="min-w-[700px]">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead 
+                            onClick={() => handleSort('name')}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1">
+                              Participant
+                              {sortBy === 'name' && (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="h-3 w-3" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3" />
+                                )
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            onClick={() => handleSort('advancePaid')}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1">
+                              Advance Paid
+                              {sortBy === 'advancePaid' && (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="h-3 w-3" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3" />
+                                )
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            onClick={() => handleSort('personallyPaid')}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1">
+                              Paid Personally
+                              {sortBy === 'personallyPaid' && (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="h-3 w-3" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3" />
+                                )
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            onClick={() => handleSort('expenseShare')}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1">
+                              Expense Share
+                              {sortBy === 'expenseShare' && (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="h-3 w-3" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3" />
+                                )
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            onClick={() => handleSort('dueAmount')}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1">
+                              Due Amount
+                              {sortBy === 'dueAmount' && (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="h-3 w-3" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3" />
+                                )
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead 
+                            onClick={() => handleSort('refundAmount')}
+                            className="cursor-pointer"
+                          >
+                            <div className="flex items-center gap-1">
+                              Refund Amount
+                              {sortBy === 'refundAmount' && (
+                                sortDirection === 'asc' ? (
+                                  <ArrowUp className="h-3 w-3" />
+                                ) : (
+                                  <ArrowDown className="h-3 w-3" />
+                                )
+                              )}
+                            </div>
+                          </TableHead>
+                          <TableHead>Donate</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
+                      </TableHeader>
+                      <TableBody>
+                        {sortedSettlements.map((settlement) => (
+                          <TableRow key={settlement.participantId}>
+                            <TableCell className="font-medium">
+                              {settlement.name}
+                            </TableCell>
+                            <TableCell>
+                              ${(settlement.advancePaid || 0).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              ${(settlement.personallyPaid || 0).toFixed(2)}
+                            </TableCell>
+                            <TableCell>
+                              ${(settlement.expenseShare || 0).toFixed(2)}
+                            </TableCell>
+                            <TableCell className={(settlement.dueAmount || 0) > 0 ? 'text-travel-error font-medium' : ''}>
+                              {(settlement.dueAmount || 0) > 0 ? `$${(settlement.dueAmount || 0).toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell className={(settlement.refundAmount || 0) > 0 ? 'text-travel-secondary font-medium' : ''}>
+                              {(settlement.refundAmount || 0) > 0 ? `$${(settlement.refundAmount || 0).toFixed(2)}` : '-'}
+                            </TableCell>
+                            <TableCell>
+                              {(settlement.refundAmount || 0) > 0 ? (
+                                <div className="switch-container">
+                                  <Switch
+                                    checked={settlement.donated || false}
+                                    onCheckedChange={(checked) => 
+                                      handleDonationToggle(settlement.participantId, checked)
+                                    }
+                                    id={`donate-switch-${settlement.participantId}`}
+                                  />
+                                  {settlement.donated && (
+                                    <Gift className="h-4 w-4 text-travel-accent ml-2" />
+                                  )}
+                                </div>
+                              ) : (
+                                '-'
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                </ScrollArea>
               </div>
             )}
             

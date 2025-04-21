@@ -9,13 +9,14 @@ import {
   PlusCircle, 
   Trash, 
   PencilLine, 
-  Calendar,
+  Calendar as CalendarIcon,
   PiggyBank,
   User,
   DollarSign,
   MessageSquare,
   ArrowDown,
   ArrowUp,
+  Gift,
 } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { AdvanceContribution } from '@/types/models';
@@ -37,7 +38,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -50,7 +50,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
 
 const TravelFund = () => {
@@ -364,6 +364,7 @@ const TravelFund = () => {
         </Card>
       </div>
       
+      {/* Add Contribution Dialog */}
       <Dialog 
         open={isAddDialogOpen} 
         onOpenChange={(open) => {
@@ -435,12 +436,12 @@ const TravelFund = () => {
                       !date && "text-muted-foreground"
                     )}
                   >
-                    <Calendar className="mr-2 h-4 w-4" />
+                    <CalendarIcon className="mr-2 h-4 w-4" />
                     {date ? format(date, "PPP") : <span>Pick a date</span>}
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-auto p-0" align="start">
-                  <CalendarComponent
+                  <Calendar
                     mode="single"
                     selected={date}
                     onSelect={(newDate) => {
@@ -473,6 +474,7 @@ const TravelFund = () => {
         </DialogContent>
       </Dialog>
       
+      {/* Edit Contribution Dialog */}
       {editingContribution && (
         <Dialog 
           open={isEditDialogOpen} 
@@ -545,12 +547,12 @@ const TravelFund = () => {
                         !date && "text-muted-foreground"
                       )}
                     >
-                      <Calendar className="mr-2 h-4 w-4" />
+                      <CalendarIcon className="mr-2 h-4 w-4" />
                       {date ? format(date, "PPP") : <span>Pick a date</span>}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0" align="start">
-                    <CalendarComponent
+                    <Calendar
                       mode="single"
                       selected={date}
                       onSelect={(newDate) => {
