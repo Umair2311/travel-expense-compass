@@ -120,50 +120,32 @@
   }
 }
 
-/* Make pointer events work properly on calendars in modals/popovers */
-.rdp {
+/* Ensure proper event handling for all interactive elements */
+.rdp,
+.rdp-months,
+.rdp-table,
+.rdp-cell,
+.rdp-button,
+.ant-picker-dropdown,
+.ant-popover-inner,
+.ant-modal-content,
+.ant-dropdown {
   pointer-events: auto !important;
 }
 
-.rdp-months {
-  pointer-events: auto !important;
-}
-
-.rdp-table {
-  pointer-events: auto !important;
-}
-
-.rdp-cell {
-  pointer-events: auto !important;
-}
-
-.rdp-button {
-  pointer-events: auto !important;
-}
-
-/* Make Ant Design popups responsive */
-.ant-picker-dropdown {
-  pointer-events: auto !important;
-}
-
-.ant-popover-inner {
-  pointer-events: auto !important;
-}
-
-.ant-modal-content {
-  pointer-events: auto !important;
-}
-
-/* Fix modals to ensure they have solid background */
+/* Fix modals and popovers to ensure solid background and proper z-index */
 .ant-modal-content,
 .ant-popover-inner,
 .ant-dropdown,
 .ant-picker-dropdown {
-  background-color: hsl(var(--background)) !important;
+  background-color: #ffffff !important;
   backdrop-filter: none !important;
+  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 
+              0 3px 6px -4px rgba(0, 0, 0, 0.12), 
+              0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
 }
 
-/* Fix z-index for modals and popovers */
+/* Fix z-index for all popups and modals to ensure proper stacking */
 .ant-dropdown, 
 .ant-picker-dropdown, 
 .ant-popover,
@@ -172,37 +154,21 @@
   z-index: 1001 !important;
 }
 
-/* Make sure that modals and popovers have proper background */
-.bg-background {
-  background-color: hsl(var(--background)) !important;
-}
-
-/* Fix for the sidebar to ensure it's not transparent */
+/* Make sure that all app backgrounds are solid */
+.bg-background,
 .sidebar-panel,
 .sidebar-panel-inner,
 .sidebar {
-  background-color: hsl(var(--background)) !important;
+  background-color: #ffffff !important;
 }
 
-/* Force modal content to be fully opaque */
-.ant-modal {
-  background-color: transparent !important;
-}
-
-.ant-modal-content {
-  background-color: #ffffff !important; 
-  opacity: 1 !important;
-  box-shadow: 0 6px 16px 0 rgba(0, 0, 0, 0.08), 0 3px 6px -4px rgba(0, 0, 0, 0.12), 0 9px 28px 8px rgba(0, 0, 0, 0.05) !important;
-}
-
-/* Fix for Ant Design Modal mask */
+/* Fix modal mask */
 .ant-modal-mask {
   background-color: rgba(0, 0, 0, 0.45) !important;
 }
 
-/* Mobile fixes for UI elements */
+/* Mobile fixes */
 @media (max-width: 640px) {
-  /* Fix for datepicker modal on mobile */
   .ant-picker-dropdown {
     position: fixed !important;
     left: 50% !important;
@@ -210,24 +176,30 @@
     max-width: 90vw !important;
   }
   
-  /* Make sure switch component is visible and clickable */
   .switch-wrapper {
     margin: 0.5rem 0;
     display: block;
   }
 }
 
-/* Ensure summary page switches are clickable */
-.ant-table-row .flex.items-center.gap-2 {
+/* Fix for Summary page donate switches */
+.ant-table-row .switch-container {
   position: relative;
+  z-index: 1;
 }
 
-#donate-switch {
+/* Ensure switches in tables are clickable */
+table .switch,
+table [data-state="checked"],
+table [data-state="unchecked"] {
   pointer-events: auto !important;
   cursor: pointer !important;
+  z-index: 2;
 }
 
+/* Specific fix for donation switches in summary table */
 [id^="donate-switch-"] {
   pointer-events: auto !important;
   cursor: pointer !important;
+  z-index: 2;
 }

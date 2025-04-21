@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTravel } from '@/context/TravelContext';
@@ -331,13 +330,14 @@ const Summary = () => {
                         </TableCell>
                         <TableCell>
                           {(settlement.refundAmount || 0) > 0 ? (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 switch-container">
                               <Switch
                                 checked={settlement.donated || false}
                                 onCheckedChange={(checked) => 
                                   handleDonationToggle(settlement.participantId, checked)
                                 }
                                 id={`donate-switch-${settlement.participantId}`}
+                                className="z-2 cursor-pointer"
                               />
                               {settlement.donated && (
                                 <Gift className="h-4 w-4 text-travel-accent" />
