@@ -1,19 +1,18 @@
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker } from "react-day-picker";
+import { DayPicker, SelectedDate, SelectedDates, SelectedRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // Extra props to support custom mobile behavior
-type ModeType = "single" | "range";
 export type CalendarProps = React.ComponentProps<typeof DayPicker> & {
   // Optionally force mobile split mode
   forceMobileSplit?: boolean;
-  mode?: ModeType;
-  selected?: Date | { from?: Date; to?: Date };
+  mode?: "single" | "range";
+  selected?: Date | { from?: Date; to?: Date } | undefined;
   onSelect?: (date: Date | { from?: Date; to?: Date } | undefined) => void;
 };
 
@@ -31,12 +30,14 @@ export function Calendar({
   // If forceMobileSplit, or on mobile with mode: 'range', we split to two calendars
   const useMobileSplitCal = (isMobile && mode === "range") || forceMobileSplit;
 
-  // For simplicity, requiring parent to provide two selected/onSelect for mobile split – document in comments
+  // For simplicity, requiring parent to provide two selected/onSelect for mobile split
   if (useMobileSplitCal) {
-    const dateRange = (selected ?? {}) as { from?: Date; to?: Date };
+    const dateRange = selected as { from?: Date; to?: Date } || {};
+    
     const onSelectRange = (updater: Partial<{ from: Date | undefined; to: Date | undefined }>) => {
       onSelect?.({ ...dateRange, ...updater });
     };
+    
     return (
       <div className={cn("flex flex-col gap-2 pointer-events-auto", className)}>
         <div>
@@ -44,7 +45,7 @@ export function Calendar({
           <DayPicker
             mode="single"
             selected={dateRange.from}
-            onSelect={date => onSelectRange({ from: date })}
+            onSelect={(date) => onSelectRange({ from: date as Date })}
             showOutsideDays={showOutsideDays}
             className={cn("p-3 pointer-events-auto")}
             {...props}
@@ -55,7 +56,7 @@ export function Calendar({
           <DayPicker
             mode="single"
             selected={dateRange.to}
-            onSelect={date => onSelectRange({ to: date })}
+            onSelect={(date) => onSelectRange({ to: date as Date })}
             showOutsideDays={showOutsideDays}
             className={cn("p-3 pointer-events-auto")}
             {...props}
@@ -65,10 +66,24 @@ export function Calendar({
     );
   }
 
+  // Handle different type requirements based on mode
+  let selectedValue: SelectedDate | SelectedDates | SelectedRange | undefined;
+  
+  if (mode === "range" && selected) {
+    // For range mode, make sure we have the correct shape
+    selectedValue = selected as SelectedRange;
+  } else if (mode === "single" && selected) {
+    // For single mode
+    selectedValue = selected as Date;
+  } else {
+    // Default/fallback
+    selectedValue = selected;
+  }
+
   return (
     <DayPicker
       mode={mode}
-      selected={selected}
+      selected={selectedValue}
       onSelect={onSelect}
       showOutsideDays={showOutsideDays}
       className={cn("p-3 pointer-events-auto bg-background", className)}
@@ -122,4 +137,3 @@ Calendar.displayName = "Calendar";
 // - On mobile, with mode="range", component switches to two single pickers for from/to.
 // - You can also force split with forceMobileSplit.
 // - Parent must handle selected as {from, to} and an onSelect that updates both.
-
