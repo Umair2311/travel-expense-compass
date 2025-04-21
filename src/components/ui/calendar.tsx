@@ -1,7 +1,7 @@
 
 import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { DayPicker, SelectedDate, SelectedDates, SelectedRange } from "react-day-picker";
+import { DayPicker, type DateRange } from "react-day-picker";
 
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
@@ -67,17 +67,17 @@ export function Calendar({
   }
 
   // Handle different type requirements based on mode
-  let selectedValue: SelectedDate | SelectedDates | SelectedRange | undefined;
+  let selectedValue: Date | DateRange | undefined;
   
   if (mode === "range" && selected) {
     // For range mode, make sure we have the correct shape
-    selectedValue = selected as SelectedRange;
+    selectedValue = selected as DateRange;
   } else if (mode === "single" && selected) {
     // For single mode
     selectedValue = selected as Date;
   } else {
     // Default/fallback
-    selectedValue = selected;
+    selectedValue = selected as Date | DateRange | undefined;
   }
 
   return (
